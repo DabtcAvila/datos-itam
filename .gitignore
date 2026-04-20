@@ -1,0 +1,9 @@
+.DS_Store
+__pycache__/
+*.pyc
+.env
+*.dump
+.venv/
+node_modules/
+.wrangler/
+data-sources/

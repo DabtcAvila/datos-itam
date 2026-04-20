@@ -1,0 +1,8 @@
+name = "datos-itam-public"
+main = "src/index.ts"
+compatibility_date = "2024-12-05"
+
+routes = [
+  { pattern = "datos-itam.org", custom_domain = true },
+  { pattern = "www.datos-itam.org", custom_domain = true }
+]
