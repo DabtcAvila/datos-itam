@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 from app.database import engine
 from app.rate_limit import limiter
-from app.routers import auth, catalogos, dashboard, export, ingest, nombramientos, personas, sectores, servidores
+from app.routers import admin, analytics, auth, catalogos, dashboard, export, ingest, nombramientos, personas, sectores, servidores
 
 
 @asynccontextmanager
@@ -44,7 +44,7 @@ app.add_middleware(
 )
 
 
-WRITE_PREFIXES = ("/api/v1/auth", "/api/v1/personas", "/api/v1/nombramientos", "/api/v1/ingest")
+WRITE_PREFIXES = ("/api/v1/auth", "/api/v1/personas", "/api/v1/nombramientos", "/api/v1/ingest", "/api/v1/admin")
 
 
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -58,6 +58,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "public, max-age=3600"
         elif path.startswith("/api/v1/dashboard"):
             response.headers["Cache-Control"] = "public, max-age=3600"
+        elif path.startswith("/api/v1/analytics"):
+            response.headers["Cache-Control"] = "public, max-age=900"
         elif "/servidores/" in path:
             response.headers["Cache-Control"] = "public, max-age=300"
         return response
@@ -72,6 +74,8 @@ app.include_router(sectores.router)
 app.include_router(catalogos.router)
 app.include_router(export.router)
 app.include_router(dashboard.router)
+app.include_router(analytics.router)
+app.include_router(admin.router)
 app.include_router(personas.router)
 app.include_router(nombramientos.router)
 app.include_router(ingest.router)

@@ -19,34 +19,10 @@ from app.schemas.dashboard import (
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
 # --- SQL queries (normalized schema) ---
+# Snapshot metrics come from materialized views (see migrations/004_materialized_views.sql).
+# Refresh via POST /api/v1/admin/refresh-materialized-views.
 
-SQL_OVERVIEW = """
-SELECT
-    COUNT(*) AS total,
-    COUNT(DISTINCT n.sector_id) AS total_sectors,
-    AVG(n.sueldo_bruto)::float AS avg_salary,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY n.sueldo_bruto)::float AS median_salary,
-    MIN(n.sueldo_bruto)::float AS min_salary,
-    MAX(n.sueldo_bruto)::float AS max_salary,
-    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY n.sueldo_bruto)::float AS p25,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY n.sueldo_bruto)::float AS p50,
-    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY n.sueldo_bruto)::float AS p75,
-    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY n.sueldo_bruto)::float AS p90,
-    COUNT(*) FILTER (WHERE csex.nombre = 'MASCULINO') AS hombres,
-    COUNT(*) FILTER (WHERE csex.nombre = 'FEMENINO') AS mujeres,
-    AVG(n.sueldo_bruto) FILTER (WHERE csex.nombre = 'MASCULINO')::float AS avg_male,
-    AVG(n.sueldo_bruto) FILTER (WHERE csex.nombre = 'FEMENINO')::float AS avg_female,
-    AVG(n.sueldo_neto)::float AS avg_net,
-    AVG(n.sueldo_bruto - n.sueldo_neto)::float AS avg_deduction,
-    CASE WHEN AVG(n.sueldo_bruto) > 0
-        THEN (AVG(n.sueldo_bruto - n.sueldo_neto) / AVG(n.sueldo_bruto) * 100)::float
-        ELSE 0 END AS avg_deduction_pct,
-    AVG(EXTRACT(YEAR FROM AGE(CURRENT_DATE, n.fecha_ingreso)))::float AS avg_seniority
-FROM nombramientos n
-JOIN personas p ON n.persona_id = p.id
-LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
-WHERE n.sueldo_bruto IS NOT NULL
-"""
+SQL_OVERVIEW = "SELECT * FROM mv_dashboard_overview WHERE key = 1"
 
 SQL_SALARY_DISTRIBUTION = """
 SELECT label, count FROM (
@@ -102,124 +78,26 @@ GROUP BY tp.nombre
 ORDER BY count DESC
 """
 
-SQL_SALARY_BY_AGE = """
-SELECT label, avg FROM (
-    SELECT '18-25' AS label, AVG(n.sueldo_bruto)::float AS avg, 1 AS ord
-    FROM nombramientos n JOIN personas p ON n.persona_id = p.id
-    WHERE p.edad BETWEEN 18 AND 25 AND n.sueldo_bruto IS NOT NULL
-    UNION ALL
-    SELECT '26-35', AVG(n.sueldo_bruto)::float, 2
-    FROM nombramientos n JOIN personas p ON n.persona_id = p.id
-    WHERE p.edad BETWEEN 26 AND 35 AND n.sueldo_bruto IS NOT NULL
-    UNION ALL
-    SELECT '36-45', AVG(n.sueldo_bruto)::float, 3
-    FROM nombramientos n JOIN personas p ON n.persona_id = p.id
-    WHERE p.edad BETWEEN 36 AND 45 AND n.sueldo_bruto IS NOT NULL
-    UNION ALL
-    SELECT '46-55', AVG(n.sueldo_bruto)::float, 4
-    FROM nombramientos n JOIN personas p ON n.persona_id = p.id
-    WHERE p.edad BETWEEN 46 AND 55 AND n.sueldo_bruto IS NOT NULL
-    UNION ALL
-    SELECT '56+', AVG(n.sueldo_bruto)::float, 5
-    FROM nombramientos n JOIN personas p ON n.persona_id = p.id
-    WHERE p.edad > 55 AND n.sueldo_bruto IS NOT NULL
-) sub ORDER BY ord
-"""
+SQL_SALARY_BY_AGE = "SELECT label, avg FROM mv_dashboard_salary_by_age ORDER BY ord"
 
-SQL_SECTORS = """
-SELECT
-    cs.nombre AS name,
-    COUNT(n.id) AS count,
-    AVG(n.sueldo_bruto)::float AS avg_salary,
-    COALESCE(AVG(n.sueldo_bruto) FILTER (WHERE csex.nombre = 'MASCULINO'), 0)::float AS avg_male,
-    COALESCE(AVG(n.sueldo_bruto) FILTER (WHERE csex.nombre = 'FEMENINO'), 0)::float AS avg_female
-FROM cat_sectores cs
-JOIN nombramientos n ON n.sector_id = cs.id
-JOIN personas p ON n.persona_id = p.id
-LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
-WHERE n.sueldo_bruto IS NOT NULL
-GROUP BY cs.nombre
-ORDER BY count DESC
-"""
+SQL_SECTORS = (
+    "SELECT name, count, avg_salary, avg_male, avg_female "
+    "FROM mv_dashboard_sectors ORDER BY count DESC"
+)
 
-SQL_TOP_POSITIONS = """
-SELECT cp.nombre AS name, COUNT(*) AS count, AVG(n.sueldo_bruto)::float AS avg_salary
-FROM nombramientos n
-JOIN cat_puestos cp ON n.puesto_id = cp.id
-WHERE n.sueldo_bruto IS NOT NULL
-GROUP BY cp.nombre
-ORDER BY avg_salary DESC
-LIMIT 10
-"""
+SQL_TOP_POSITIONS = (
+    "SELECT name, count, avg_salary FROM mv_dashboard_top_positions "
+    "ORDER BY avg_salary DESC"
+)
 
-SQL_SENIORITY_DISTRIBUTION = """
-SELECT label, count FROM (
-    SELECT '0-2 años' AS label, COUNT(*) AS count, 1 AS ord
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 0 AND 2
-    UNION ALL
-    SELECT '3-5 años', COUNT(*), 2
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 3 AND 5
-    UNION ALL
-    SELECT '6-10 años', COUNT(*), 3
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 6 AND 10
-    UNION ALL
-    SELECT '11-20 años', COUNT(*), 4
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 11 AND 20
-    UNION ALL
-    SELECT '21-30 años', COUNT(*), 5
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 21 AND 30
-    UNION ALL
-    SELECT '30+ años', COUNT(*), 6
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) > 30
-) sub ORDER BY ord
-"""
+SQL_SENIORITY_DISTRIBUTION = (
+    "SELECT label, count_all AS count FROM mv_dashboard_seniority ORDER BY ord"
+)
 
-SQL_SALARY_BY_SENIORITY = """
-SELECT label, avg, count FROM (
-    SELECT '0-2 años' AS label,
-        AVG(sueldo_bruto)::float AS avg, COUNT(*) AS count, 1 AS ord
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL AND sueldo_bruto IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 0 AND 2
-    UNION ALL
-    SELECT '3-5 años', AVG(sueldo_bruto)::float, COUNT(*), 2
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL AND sueldo_bruto IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 3 AND 5
-    UNION ALL
-    SELECT '6-10 años', AVG(sueldo_bruto)::float, COUNT(*), 3
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL AND sueldo_bruto IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 6 AND 10
-    UNION ALL
-    SELECT '11-20 años', AVG(sueldo_bruto)::float, COUNT(*), 4
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL AND sueldo_bruto IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 11 AND 20
-    UNION ALL
-    SELECT '21-30 años', AVG(sueldo_bruto)::float, COUNT(*), 5
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL AND sueldo_bruto IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) BETWEEN 21 AND 30
-    UNION ALL
-    SELECT '30+ años', AVG(sueldo_bruto)::float, COUNT(*), 6
-    FROM nombramientos
-    WHERE fecha_ingreso IS NOT NULL AND sueldo_bruto IS NOT NULL
-      AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, fecha_ingreso)) > 30
-) sub ORDER BY ord
-"""
+SQL_SALARY_BY_SENIORITY = (
+    "SELECT label, avg_salary AS avg, count_with_salary AS count "
+    "FROM mv_dashboard_seniority ORDER BY ord"
+)
 
 SQL_BRUTO_NETO_BY_RANGE = """
 SELECT label, avg_bruto, avg_neto, count FROM (

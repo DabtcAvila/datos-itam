@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Wrapper to connect psql to Neon using .env.neon credentials.
+#
+# Usage:
+#   ./api/scripts/neon-psql                    # interactive psql session
+#   ./api/scripts/neon-psql -c "SELECT ..."    # one-shot query
+#   ./api/scripts/neon-psql -f archivo.sql     # run SQL file
+#   ./api/scripts/neon-psql < archivo.sql      # run via stdin
+#
+# Requires: psql (brew install libpq) and api/.env.neon present.
+
+set -euo pipefail
+
+ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)/.env.neon"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "ERROR: $ENV_FILE not found" >&2
+    exit 1
+fi
+
+# Extract DATABASE_URL and strip asyncpg prefix / query params for psql
+URL=$(grep '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)
+# asyncpg:// -> ://  and drop any ?query string
+URL=${URL/postgresql+asyncpg:/postgresql:}
+URL=${URL%%\?*}
+
+# Add sslmode=require for psql
+exec psql "${URL}?sslmode=require" "$@"

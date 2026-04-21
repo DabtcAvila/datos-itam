@@ -134,6 +134,36 @@ async def sectores(request: Request, session: AsyncSession = Depends(get_session
     return await _catalog_with_count(session, CatSector, Nombramiento.sector_id)
 
 
+@router.get("/sexos", response_model=list[CatalogItemWithCount])
+@limiter.limit("60/minute")
+async def sexos(request: Request, session: AsyncSession = Depends(get_session)):
+    stmt = (
+        select(CatSexo.id, CatSexo.nombre, func.count(Persona.id).label("count"))
+        .outerjoin(Persona, Persona.sexo_id == CatSexo.id)
+        .group_by(CatSexo.id, CatSexo.nombre)
+        .order_by(CatSexo.nombre)
+    )
+    result = await session.execute(stmt)
+    return [CatalogItemWithCount(id=r.id, nombre=r.nombre, count=r.count) for r in result.all()]
+
+
+@router.get("/niveles-salariales", response_model=list[CatalogItemWithCount])
+@limiter.limit("60/minute")
+async def niveles_salariales(request: Request, session: AsyncSession = Depends(get_session)):
+    stmt = (
+        select(
+            CatNivelSalarial.id,
+            cast(CatNivelSalarial.clave, String).label("nombre"),
+            func.count(Nombramiento.id).label("count"),
+        )
+        .outerjoin(Nombramiento, Nombramiento.nivel_salarial_id == CatNivelSalarial.id)
+        .group_by(CatNivelSalarial.id, CatNivelSalarial.clave)
+        .order_by(CatNivelSalarial.clave)
+    )
+    result = await session.execute(stmt)
+    return [CatalogItemWithCount(id=r.id, nombre=r.nombre, count=r.count) for r in result.all()]
+
+
 @router.get("/puestos", response_model=PaginatedResponse[PuestoWithCount])
 @limiter.limit("60/minute")
 async def puestos(

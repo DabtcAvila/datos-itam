@@ -37,6 +37,28 @@ async def test_sectores(client):
     assert len(data) >= 70  # ~73 sectores
 
 
+async def test_sexos(client):
+    r = await client.get("/api/v1/catalogos/sexos")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert "id" in data[0]
+    assert "nombre" in data[0]
+    assert "count" in data[0]
+
+
+async def test_niveles_salariales(client):
+    r = await client.get("/api/v1/catalogos/niveles-salariales")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert "id" in data[0]
+    assert "nombre" in data[0]
+    assert "count" in data[0]
+
+
 async def test_puestos_default(client):
     r = await client.get("/api/v1/catalogos/puestos")
     assert r.status_code == 200

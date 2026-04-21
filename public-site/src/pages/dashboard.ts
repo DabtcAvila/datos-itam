@@ -3,6 +3,10 @@ import { stats } from '../data/stats';
 import { buildHero, buildInsights, buildKPIs, buildSectorFilter, buildSalaryStats, buildBrutoNeto, buildGenderAnalysis, buildGenderGapTable, buildTopPositionsTable, buildAboutSection } from '../dashboard/components';
 import { buildChartsScript } from '../dashboard/charts';
 import { buildLiveDataScript } from '../dashboard/live-data';
+import { buildFilterStateScript } from '../dashboard/filter-state';
+import { buildFilterPanel, buildFilterPanelScript } from '../dashboard/filter-panel';
+import { buildAnalyticsChartsSection, buildAnalyticsChartsScript } from '../dashboard/analytics-charts';
+import { buildExplorerSection, buildExplorerScript } from '../dashboard/explorer';
 
 export function renderDashboard(): string {
   const extractDate = new Date(stats.extractDate).toLocaleDateString('es-MX', {
@@ -128,11 +132,21 @@ export function renderDashboard(): string {
 
     ${buildGenderGapTable()}
 
-    <!-- 5. EXPLORA: Filtro interactivo por sector -->
-    <h2 class="section-title">Explora por sector</h2>
+    <!-- 5. ANALISIS AVANZADO: Window functions -->
+    ${buildAnalyticsChartsSection()}
+
+    <!-- 6. EXPLORA: Filtros reactivos con estado en URL -->
+    <h2 class="section-title">Explora con filtros</h2>
+    ${buildFilterPanel()}
+
+    <!-- 6b. Filtro legacy por sector (precomputado, sin fetch) -->
+    <h3 class="section-subtitle">Detalle por sector (datos precomputados)</h3>
     ${buildSectorFilter()}
 
-    <!-- 6. SOBRE ESTOS DATOS -->
+    <!-- 7. EXPLORADOR: Tabla paginada con buscador + export -->
+    ${buildExplorerSection()}
+
+    <!-- 8. SOBRE ESTOS DATOS -->
     ${buildAboutSection()}
 
   </main>
@@ -143,6 +157,10 @@ export function renderDashboard(): string {
 
   ${buildChartsScript()}
   ${buildLiveDataScript()}
+  ${buildFilterStateScript()}
+  ${buildFilterPanelScript()}
+  ${buildAnalyticsChartsScript()}
+  ${buildExplorerScript()}
 </body>
 </html>`;
 }

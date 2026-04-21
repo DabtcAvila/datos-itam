@@ -6,9 +6,13 @@ from sqlmodel import SQLModel  # noqa: F401
 from app.config import settings
 
 connect_args: dict = {}
-# Neon uses pgbouncer which does NOT support prepared statements
+# Neon uses pgbouncer which does NOT support prepared statements,
+# and requires SSL. asyncpg does not accept libpq-style query params
+# (channel_binding, sslmode) so we strip them at .env level and pass
+# ssl='require' here.
 if "neon.tech" in settings.database_url:
     connect_args["statement_cache_size"] = 0
+    connect_args["ssl"] = "require"
 
 engine = create_async_engine(
     settings.database_url,
