@@ -1,7 +1,12 @@
-# ER Diagram — `remuneraciones_cdmx` / `neondb`
+# ER Diagram — `remuneraciones_cdmx`
 
 Auto-generado del schema real (Neon y local son idénticos).
 
+> **Namespaces** (post-migración 005):
+> - `cdmx.*` — dataset CDMX servidores públicos (10 tablas + 1 vista + 5 MVs).
+> - `public.users` — auth transversal. Siguen sin pertenecer a ningún dataset.
+> - Futuro: `enigh.*`, `consar.*` como esquemas hermanos.
+>
 > **Cómo verlo**: abre este archivo en VSCode y pulsa **⌘⇧V** (Open Preview). Mermaid se renderiza nativo desde VSCode 1.82+. Si tu VSCode es más viejo, instala la extensión **"Markdown Preview Mermaid Support"** de Matt Bierner.
 
 ---
@@ -10,17 +15,17 @@ Auto-generado del schema real (Neon y local son idénticos).
 
 ```mermaid
 erDiagram
-    PERSONAS ||--o{ NOMBRAMIENTOS : "tiene"
-    CAT_SEXOS ||--o{ PERSONAS : "clasifica"
-    CAT_PUESTOS ||--o{ NOMBRAMIENTOS : "describe puesto"
-    CAT_SECTORES ||--o{ NOMBRAMIENTOS : "pertenece a"
-    CAT_TIPOS_NOMINA ||--o{ NOMBRAMIENTOS : "tipo nomina"
-    CAT_TIPOS_CONTRATACION ||--o{ NOMBRAMIENTOS : "tipo contratacion"
-    CAT_TIPOS_PERSONAL ||--o{ NOMBRAMIENTOS : "tipo personal"
-    CAT_UNIVERSOS ||--o{ NOMBRAMIENTOS : "universo"
-    CAT_NIVELES_SALARIALES ||--o{ NOMBRAMIENTOS : "nivel"
+    cdmx_personas ||--o{ cdmx_nombramientos : "tiene"
+    cdmx_cat_sexos ||--o{ cdmx_personas : "clasifica"
+    cdmx_cat_puestos ||--o{ cdmx_nombramientos : "describe puesto"
+    cdmx_cat_sectores ||--o{ cdmx_nombramientos : "pertenece a"
+    cdmx_cat_tipos_nomina ||--o{ cdmx_nombramientos : "tipo nomina"
+    cdmx_cat_tipos_contratacion ||--o{ cdmx_nombramientos : "tipo contratacion"
+    cdmx_cat_tipos_personal ||--o{ cdmx_nombramientos : "tipo personal"
+    cdmx_cat_universos ||--o{ cdmx_nombramientos : "universo"
+    cdmx_cat_niveles_salariales ||--o{ cdmx_nombramientos : "nivel"
 
-    PERSONAS {
+    cdmx_personas {
         int id PK
         varchar nombre
         varchar apellido_1
@@ -29,7 +34,7 @@ erDiagram
         int edad "nullable"
     }
 
-    NOMBRAMIENTOS {
+    cdmx_nombramientos {
         int id PK
         int persona_id FK
         int puesto_id FK
@@ -44,49 +49,49 @@ erDiagram
         numeric sueldo_neto
     }
 
-    CAT_SEXOS {
+    cdmx_cat_sexos {
         int id PK
         varchar nombre UK "MASCULINO/FEMENINO"
     }
 
-    CAT_PUESTOS {
+    cdmx_cat_puestos {
         int id PK
         varchar nombre "1,772 puestos"
     }
 
-    CAT_SECTORES {
+    cdmx_cat_sectores {
         int id PK
         varchar clave
         varchar nombre "73 sectores"
     }
 
-    CAT_TIPOS_NOMINA {
+    cdmx_cat_tipos_nomina {
         int id PK
         int clave UK
     }
 
-    CAT_TIPOS_CONTRATACION {
+    cdmx_cat_tipos_contratacion {
         int id PK
         varchar nombre
     }
 
-    CAT_TIPOS_PERSONAL {
+    cdmx_cat_tipos_personal {
         int id PK
         varchar nombre
     }
 
-    CAT_UNIVERSOS {
+    cdmx_cat_universos {
         int id PK
         varchar clave
         varchar nombre
     }
 
-    CAT_NIVELES_SALARIALES {
+    cdmx_cat_niveles_salariales {
         int id PK
         int clave UK
     }
 
-    USERS {
+    public_users {
         int id PK
         varchar username UK
         varchar email UK
@@ -98,11 +103,12 @@ erDiagram
 
 ## Notas de normalización (4NF)
 
-- **`personas`** contiene identidad (atributos que dependen solo de la persona: nombre, edad, sexo). Hay 246,821 personas. 1:N con `nombramientos`.
-- **`nombramientos`** contiene el vínculo empleado-puesto (atributos que dependen de la combinación persona + puesto: fecha_ingreso, sueldo, tipo de contratación, etc.). Hay 246,821 nombramientos — en esta carga inicial cada persona tiene exactamente 1 nombramiento vigente. El modelo **permite** N:1 para histórico/multi-empleo futuros.
-- **8 catálogos** (`cat_*`) eliminan redundancia: en el CSV original todos los valores categóricos se repetían como strings; ahora viven una sola vez con un id numérico.
-- **`users`** es tabla aparte para autenticación JWT del API. No está relacionada con el modelo de datos.
-- **`v_servidores_publicos`** es una **view** (no tabla) que re-construye la forma desnormalizada del CSV original haciendo JOIN de todo. Útil para validación y compatibilidad con queries legacy.
+- **`cdmx.personas`** contiene identidad (atributos que dependen solo de la persona: nombre, edad, sexo). Hay 246,821 personas. 1:N con `cdmx.nombramientos`.
+- **`cdmx.nombramientos`** contiene el vínculo empleado-puesto (atributos que dependen de la combinación persona + puesto: fecha_ingreso, sueldo, tipo de contratación, etc.). Hay 246,821 nombramientos — en esta carga inicial cada persona tiene exactamente 1 nombramiento vigente. El modelo **permite** N:1 para histórico/multi-empleo futuros.
+- **8 catálogos** (`cdmx.cat_*`) eliminan redundancia: en el CSV original todos los valores categóricos se repetían como strings; ahora viven una sola vez con un id numérico.
+- **`public.users`** es tabla aparte para autenticación JWT del API, en esquema `public` por ser transversal a todos los datasets (CDMX, ENIGH, CONSAR). No está relacionada con el modelo de datos CDMX.
+- **`cdmx.v_servidores_publicos`** es una **view** (no tabla) que re-construye la forma desnormalizada del CSV original haciendo JOIN de todo. Útil para validación y compatibilidad con queries legacy.
+- **`search_path='cdmx, public'`** configurado a nivel de conexión (en `api/app/database.py`) hace que las queries sin qualificar resuelvan contra `cdmx.*` primero, cayendo a `public.*` para `users`.
 
 ## Tablas materializadas (no en el ER porque son derivadas)
 
@@ -110,11 +116,11 @@ Para el dashboard hay 5 MVs que NO son parte del modelo relacional — son cach�
 
 | MV | Filas | Refresca desde |
 |---|---|---|
-| `mv_dashboard_overview` | 1 | agregados globales de `nombramientos + personas + cat_sexos` |
-| `mv_dashboard_sectors` | 73 | `cat_sectores ⨝ nombramientos ⨝ personas` con counts + avg por género |
-| `mv_dashboard_top_positions` | 10 | top-10 puestos con AVG(sueldo) |
-| `mv_dashboard_salary_by_age` | 5 | 5 buckets etarios |
-| `mv_dashboard_seniority` | 6 | 6 buckets de antigüedad |
+| `cdmx.mv_dashboard_overview` | 1 | agregados globales de `nombramientos + personas + cat_sexos` |
+| `cdmx.mv_dashboard_sectors` | 73 | `cat_sectores ⨝ nombramientos ⨝ personas` con counts + avg por género |
+| `cdmx.mv_dashboard_top_positions` | 10 | top-10 puestos con AVG(sueldo) |
+| `cdmx.mv_dashboard_salary_by_age` | 5 | 5 buckets etarios |
+| `cdmx.mv_dashboard_seniority` | 6 | 6 buckets de antigüedad |
 
 Refresh: `POST /api/v1/admin/refresh-materialized-views` (JWT-protected), corre `REFRESH MATERIALIZED VIEW CONCURRENTLY` sobre los 5.
 
