@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 from app.database import engine
 from app.rate_limit import limiter
-from app.routers import catalogos, dashboard, export, sectores, servidores
+from app.routers import auth, catalogos, dashboard, export, ingest, nombramientos, personas, sectores, servidores
 
 
 @asynccontextmanager
@@ -39,16 +39,22 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_methods=["GET"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*", "Authorization"],
 )
+
+
+WRITE_PREFIXES = ("/api/v1/auth", "/api/v1/personas", "/api/v1/nombramientos", "/api/v1/ingest")
 
 
 class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         path = request.url.path
-        if "/catalogos/" in path or path.startswith("/api/v1/sectores"):
+        # Don't cache write endpoints
+        if any(path.startswith(p) for p in WRITE_PREFIXES):
+            response.headers["Cache-Control"] = "no-store"
+        elif "/catalogos/" in path or path.startswith("/api/v1/sectores"):
             response.headers["Cache-Control"] = "public, max-age=3600"
         elif path.startswith("/api/v1/dashboard"):
             response.headers["Cache-Control"] = "public, max-age=3600"
@@ -60,11 +66,15 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 app.add_middleware(CacheControlMiddleware)
 
 
+app.include_router(auth.router)
 app.include_router(servidores.router)
 app.include_router(sectores.router)
 app.include_router(catalogos.router)
 app.include_router(export.router)
 app.include_router(dashboard.router)
+app.include_router(personas.router)
+app.include_router(nombramientos.router)
+app.include_router(ingest.router)
 
 
 @app.get("/health")

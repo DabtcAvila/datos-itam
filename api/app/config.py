@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     pool_size: int = 5
     max_overflow: int = 10
     testing: bool = False
+    secret_key: str = "dev-secret-change-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
     model_config = {"env_file": ".env"}
 

@@ -9,6 +9,7 @@ from app.models.catalogs import (
     CatUniverso,
 )
 from app.models.servidores import Nombramiento, Persona
+from app.models.users import User
 
 __all__ = [
     "CatNivelSalarial",
@@ -21,4 +22,5 @@ __all__ = [
     "CatUniverso",
     "Nombramiento",
     "Persona",
+    "User",
 ]
