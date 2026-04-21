@@ -82,12 +82,3 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/debug/bcrypt")
-async def debug_bcrypt():
-    try:
-        import bcrypt
-        h = bcrypt.hashpw(b"test", bcrypt.gensalt())
-        ok = bcrypt.checkpw(b"test", h)
-        return {"bcrypt": "ok", "version": getattr(bcrypt, "__version__", "unknown"), "verify": ok}
-    except Exception as e:
-        return {"bcrypt": "error", "detail": str(e)}
