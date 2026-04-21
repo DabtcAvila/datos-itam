@@ -5,10 +5,13 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "extract-stats": "tsx scripts/extract-stats.ts"
+    "extract-stats": "tsx scripts/extract-stats.ts",
+    "extract-stats-neon": "tsx scripts/extract-stats-neon.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241205.0",
+    "@types/pg": "^8.20.0",
+    "pg": "^8.20.0",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "wrangler": "^3.99.0"
