@@ -97,6 +97,174 @@ export function buildD1_Ingreso(): string {
   `;
 }
 
+// ==================== D5 ====================
+
+export function buildD5_Gastos(): string {
+  const d = COMPARATIVO_SEED.d5;
+  const rubrosRows = d.rubros.map(r => `
+    <tr>
+      <td>${r.nombre}</td>
+      <td class="num">$${formatNumber(Math.round(r.meanCdmx))}</td>
+      <td class="num">$${formatNumber(Math.round(r.meanNac))}</td>
+      <td class="num delta-ok">+$${formatNumber(Math.round(r.deltaAbs))}</td>
+      <td class="num delta-ok">+${r.deltaPct.toFixed(2)}%</td>
+    </tr>
+  `).join('');
+  const rubroTop = d.rubros.reduce((a, b) => a.deltaPct > b.deltaPct ? a : b);
+  const rubroBottom = d.rubros.reduce((a, b) => a.deltaPct < b.deltaPct ? a : b);
+
+  return `
+    <section class="enigh-section" id="d5-gastos">
+      <h2 class="section-title">3 · Estructura del gasto: CDMX vs Nacional</h2>
+      <p class="section-intro">
+        Los <strong>9 rubros oficiales</strong> del gasto monetario del hogar INEGI, comparados entre el promedio CDMX y
+        el promedio nacional. El hogar CDMX gasta en promedio <strong>$${formatNumber(Math.round(d.meanCdmx))}/mes</strong>
+        contra <strong>$${formatNumber(Math.round(d.meanNacional))}/mes</strong> nacional — un delta de
+        <strong>+${d.deltaPctTotal.toFixed(2)}%</strong>. No es igual en todos los rubros: vivienda y educación son donde
+        la CDMX gasta desproporcionadamente más.
+      </p>
+
+      <div class="insight insight-standalone">
+        <span class="insight-icon">&#9679;</span>
+        <span>
+          Mayor delta porcentual: <strong>${rubroTop.nombre}</strong>
+          (+${rubroTop.deltaPct.toFixed(2)}%, +$${formatNumber(Math.round(rubroTop.deltaAbs))}/mes).
+          Menor: <strong>${rubroBottom.nombre}</strong>
+          (+${rubroBottom.deltaPct.toFixed(2)}%). El patrón sugiere estructura metropolitana con costo
+          de vivienda elevado y mayor gasto educativo — consistente con ingreso hogar CDMX 2° lugar nacional.
+        </span>
+      </div>
+
+      <div class="chart-card full-width">
+        <h3>Gasto mensual promedio por rubro · CDMX vs Nacional</h3>
+        <div class="chart-wrapper chart-wrapper--tall">
+          <canvas id="d5Chart" role="img" aria-label="Gráfico de barras agrupadas comparando 9 rubros de gasto mensual entre CDMX y nacional"></canvas>
+        </div>
+        <p class="chart-note">
+          <strong>Barras azules</strong>: gasto mensual promedio CDMX. <strong>Verdes</strong>: nacional.
+          Ambas series son valores absolutos en pesos — la brecha visual es directamente el delta absoluto de gasto.
+        </p>
+      </div>
+
+      <div class="table-section">
+        <h3>Desglose por rubro con delta</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rubro</th>
+                <th class="num">CDMX mensual</th>
+                <th class="num">Nacional mensual</th>
+                <th class="num">Δ absoluto</th>
+                <th class="num">Δ porcentual</th>
+              </tr>
+            </thead>
+            <tbody id="d5-rubros-tbody">
+              ${rubrosRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'Pesos mensuales promedio por hogar (gasto monetario, 9 rubros oficiales INEGI)',
+        fuente: 'enigh.concentradohogar (tabla summary oficial) nacional y entidad=09',
+        fuenteUrl: COMPARATIVO_SEED.sourceInegi.url,
+        metodologia: 'SUM(rubro × factor) / SUM(factor) por scope; trim dividido entre 3 para mensual. Desagregación por decil no expuesta aquí.',
+        validado: COMPARATIVO_SEED.buildDate,
+      })}
+    </section>
+  `;
+}
+
+// ==================== D7 ====================
+
+export function buildD7_TopVsBottom(): string {
+  const d = COMPARATIVO_SEED.d7;
+  return `
+    <section class="enigh-section" id="d7-top-vs-bottom">
+      <h2 class="section-title">4 · Extremos de la distribución: top 1% vs bottom 1%</h2>
+      <p class="section-intro">
+        Lectura complementaria al mapeo de deciles: ¿dónde caen los <strong>extremos</strong> de la distribución
+        de sueldos CDMX contra los <strong>deciles extremos</strong> del hogar nacional ENIGH? La CDMX servidor
+        está acotada por regulaciones salariales del sector público; el hogar nacional ENIGH refleja el rango
+        completo de la economía (salarios + rentas + patrimonio + actividad económica).
+      </p>
+
+      <div class="caveat-note caveat-note--definition">
+        <div class="caveat-title">Unidades — leer con cuidado</div>
+        <p>Percentiles CDMX: <strong>sueldo mensual individual</strong> (persona servidor público). Deciles ENIGH:
+        <strong>ingreso mensual total del hogar</strong> (promedio 3.35 personas). Un p99 servidor individual
+        vs un d10 hogar no son equivalentes semánticos — es el mismo patrón que D1 aplicado a los extremos.</p>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Top bracket — p99 servidor CDMX vs d10 hogar nacional</h3>
+          <div class="chart-wrapper">
+            <canvas id="d7TopChart" role="img" aria-label="Gráfico de barras top bracket con p90, p95, p99 CDMX y mean d10 nacional"></canvas>
+          </div>
+          <p class="chart-note">
+            El <strong>p99 CDMX</strong> ($${formatNumber(d.top.percentiles.p99)}/mes) supera el <strong>lower del d10
+            nacional</strong> ($${formatNumber(Math.round(d.top.d10Lower))}/mes) — el top 1% de servidores CDMX entra
+            al decil 10 como perceptor único. Pero está $${formatNumber(Math.round(d.top.brechaP99vsD10mean))}/mes
+            <em>por debajo</em> del <strong>mean d10</strong> ($${formatNumber(Math.round(d.top.d10Mean))}/mes).
+          </p>
+        </div>
+        <div class="chart-card">
+          <h3>Bottom bracket — p01 servidor CDMX vs d1 hogar nacional</h3>
+          <div class="chart-wrapper">
+            <canvas id="d7BottomChart" role="img" aria-label="Gráfico de barras bottom bracket con p01, p05, p10 CDMX y mean d1 nacional"></canvas>
+          </div>
+          <p class="chart-note">
+            El <strong>p01 CDMX</strong> ($${formatNumber(d.bottom.percentiles.p01)}/mes) está
+            $${formatNumber(Math.round(Math.abs(d.bottom.brechaP01vsD1mean)))}/mes <em>por debajo</em> del
+            <strong>mean d1 nacional</strong> ($${formatNumber(Math.round(d.bottom.d1Mean))}/mes hogar) — el 1% más
+            bajo de servidores CDMX gana menos que un hogar promedio del decil 1 nacional.
+          </p>
+        </div>
+      </div>
+
+      <div class="insights">
+        <h3 class="insights-title">Matices del response API</h3>
+        <div class="insights-grid">
+          <div class="insight">
+            <span class="insight-icon">&#9679;</span>
+            <span>
+              Solo el <strong>top 1%</strong> de servidores CDMX entra individualmente en el decil 10 como hogar.
+              El resto (p90-p99, percentiles 90 al 99) no alcanza el lower d10 ($${formatNumber(Math.round(d.top.d10Lower))}).
+            </span>
+          </div>
+          <div class="insight">
+            <span class="insight-icon">&#9679;</span>
+            <span>
+              La distancia de $${formatNumber(Math.round(d.top.brechaP99vsD10mean))}/mes entre p99 CDMX y mean d10
+              nacional <strong>no es evidencia</strong> de "servidores top debajo del decil 10" — refleja que
+              el d10 nacional está dominado por hogares con composición de ingreso más rica (múltiples perceptores
+              o patrimonio generador).
+            </span>
+          </div>
+          <div class="insight">
+            <span class="insight-icon">&#9679;</span>
+            <span>
+              El <strong>upper d10 nacional</strong> llega a ${formatCurrency(Math.round(d.top.d10Upper / 1e6))}M/mes
+              (outliers) — el mean d10 no es el tope del decil, es el promedio de todos los hogares de d10.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'CDMX: pesos mensuales / persona (sueldo bruto individual). ENIGH: pesos mensuales / hogar (ing_cor).',
+        fuente: 'cdmx.nombramientos (percentiles PERCENT_RANK) + enigh.concentradohogar (deciles factor-weighted)',
+        fuenteUrl: COMPARATIVO_SEED.sourceInegi.url,
+        metodologia: 'Deciles ENIGH reproducen tabulados oficiales INEGI (±0.15% en 8/10 deciles).',
+        validado: COMPARATIVO_SEED.buildDate,
+      })}
+    </section>
+  `;
+}
+
 // ==================== D4 ====================
 
 export function buildD4_Actividad(): string {

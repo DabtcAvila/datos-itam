@@ -7,7 +7,13 @@ import { COMPARATIVO_SEED } from './seed';
 export function buildComparativoChartsScript(): string {
   const d1 = COMPARATIVO_SEED.d1;
   const d4 = COMPARATIVO_SEED.d4;
+  const d5 = COMPARATIVO_SEED.d5;
   const d6 = COMPARATIVO_SEED.d6;
+  const d7 = COMPARATIVO_SEED.d7;
+
+  const d5Labels = JSON.stringify(d5.rubros.map(r => r.nombre));
+  const d5Cdmx = JSON.stringify(d5.rubros.map(r => r.meanCdmx));
+  const d5Nac = JSON.stringify(d5.rubros.map(r => r.meanNac));
 
   return `
   <script>
@@ -147,6 +153,171 @@ export function buildComparativoChartsScript(): string {
                 grid: { color: '#262626' },
                 ticks: { callback: function(v) { return v + '%'; } },
                 title: { display: true, text: '% de hogares con la actividad', color: '#71717a', font: { size: 11 } }
+              },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      // D5 — Gastos por rubro CDMX vs Nacional (dual bar grouped, 9 rubros)
+      var d5Canvas = document.getElementById('d5Chart');
+      if (d5Canvas) {
+        new Chart(d5Canvas, {
+          type: 'bar',
+          data: {
+            labels: ${d5Labels},
+            datasets: [
+              {
+                label: 'CDMX',
+                data: ${d5Cdmx},
+                backgroundColor: 'rgba(59, 130, 246, 0.85)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1,
+                borderRadius: 4,
+              },
+              {
+                label: 'Nacional',
+                data: ${d5Nac},
+                backgroundColor: 'rgba(34, 197, 94, 0.75)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1,
+                borderRadius: 4,
+              }
+            ]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 16 },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return ctx.dataset.label + ': $' + Math.round(ctx.raw).toLocaleString('es-MX') + '/mes'; }
+                }
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                grid: { color: '#262626' },
+                ticks: { callback: function(v) { return '$' + (v/1000).toFixed(1) + 'K'; } },
+                title: { display: true, text: 'Gasto mensual promedio (pesos)', color: '#71717a', font: { size: 11 } }
+              },
+              y: {
+                grid: { display: false },
+                ticks: { font: { size: 10 } }
+              }
+            }
+          }
+        });
+      }
+
+      // D7 top — p90/p95/p99 CDMX + mean d10 nacional
+      var d7TopCanvas = document.getElementById('d7TopChart');
+      if (d7TopCanvas) {
+        new Chart(d7TopCanvas, {
+          type: 'bar',
+          data: {
+            labels: ['p90 CDMX', 'p95 CDMX', 'p99 CDMX', 'mean d10 nac.'],
+            datasets: [{
+              label: 'Ingreso mensual',
+              data: [
+                ${d7.top.percentiles.p90},
+                ${d7.top.percentiles.p95},
+                ${d7.top.percentiles.p99},
+                ${d7.top.d10Mean}
+              ],
+              backgroundColor: [
+                'rgba(59, 130, 246, 0.55)',
+                'rgba(59, 130, 246, 0.70)',
+                'rgba(59, 130, 246, 0.85)',
+                'rgba(34, 197, 94, 0.85)',
+              ],
+              borderColor: [
+                'rgba(59, 130, 246, 1)',
+                'rgba(59, 130, 246, 1)',
+                'rgba(59, 130, 246, 1)',
+                'rgba(34, 197, 94, 1)',
+              ],
+              borderWidth: 1,
+              borderRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return '$' + Math.round(ctx.raw).toLocaleString('es-MX') + '/mes'; }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#262626' },
+                ticks: { callback: function(v) { return '$' + (v/1000).toFixed(0) + 'K'; } }
+              },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      // D7 bottom — p01/p05/p10 CDMX + mean d1 nacional
+      var d7BottomCanvas = document.getElementById('d7BottomChart');
+      if (d7BottomCanvas) {
+        new Chart(d7BottomCanvas, {
+          type: 'bar',
+          data: {
+            labels: ['p01 CDMX', 'p05 CDMX', 'p10 CDMX', 'mean d1 nac.'],
+            datasets: [{
+              label: 'Ingreso mensual',
+              data: [
+                ${d7.bottom.percentiles.p01},
+                ${d7.bottom.percentiles.p05},
+                ${d7.bottom.percentiles.p10},
+                ${d7.bottom.d1Mean}
+              ],
+              backgroundColor: [
+                'rgba(239, 68, 68, 0.55)',
+                'rgba(239, 68, 68, 0.70)',
+                'rgba(239, 68, 68, 0.85)',
+                'rgba(234, 179, 8, 0.85)',
+              ],
+              borderColor: [
+                'rgba(239, 68, 68, 1)',
+                'rgba(239, 68, 68, 1)',
+                'rgba(239, 68, 68, 1)',
+                'rgba(234, 179, 8, 1)',
+              ],
+              borderWidth: 1,
+              borderRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return '$' + Math.round(ctx.raw).toLocaleString('es-MX') + '/mes'; }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#262626' },
+                ticks: { callback: function(v) { return '$' + (v/1000).toFixed(1) + 'K'; } }
               },
               x: { grid: { display: false } }
             }

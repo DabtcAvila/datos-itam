@@ -92,6 +92,60 @@ export function buildComparativoLiveDataScript(): string {
       });
     }
 
+    // ---------- D5 ----------
+    function renderD5(d) {
+      if (!d || !Array.isArray(d.rubros)) return;
+      var tbody = document.getElementById('d5-rubros-tbody');
+      if (tbody) {
+        tbody.innerHTML = d.rubros.map(function(r) {
+          return '<tr>' +
+            '<td>' + r.nombre + '</td>' +
+            '<td class="num">$' + fmtN(Math.round(r.mean_cdmx_mensual)) + '</td>' +
+            '<td class="num">$' + fmtN(Math.round(r.mean_nacional_mensual)) + '</td>' +
+            '<td class="num delta-ok">+$' + fmtN(Math.round(r.delta_absoluto)) + '</td>' +
+            '<td class="num delta-ok">+' + r.delta_pct.toFixed(2) + '%</td>' +
+            '</tr>';
+        }).join('');
+      }
+      whenChartReady(function() {
+        var c = getChartByCanvasId('d5Chart');
+        if (!c) return;
+        c.data.labels = d.rubros.map(function(r) { return r.nombre; });
+        c.data.datasets[0].data = d.rubros.map(function(r) { return r.mean_cdmx_mensual; });
+        c.data.datasets[1].data = d.rubros.map(function(r) { return r.mean_nacional_mensual; });
+        c.update('none');
+      });
+    }
+
+    // ---------- D7 ----------
+    function renderD7(d) {
+      if (!d || !d.top_bracket || !d.bottom_bracket) return;
+      whenChartReady(function() {
+        var top = d.top_bracket;
+        var bot = d.bottom_bracket;
+        var cTop = getChartByCanvasId('d7TopChart');
+        if (cTop && top.cdmx_servidor_percentiles && top.enigh_d10) {
+          cTop.data.datasets[0].data = [
+            top.cdmx_servidor_percentiles.p90,
+            top.cdmx_servidor_percentiles.p95,
+            top.cdmx_servidor_percentiles.p99,
+            top.enigh_d10.mean_mensual,
+          ];
+          cTop.update('none');
+        }
+        var cBot = getChartByCanvasId('d7BottomChart');
+        if (cBot && bot.cdmx_servidor_percentiles && bot.enigh_d1) {
+          cBot.data.datasets[0].data = [
+            bot.cdmx_servidor_percentiles.p01,
+            bot.cdmx_servidor_percentiles.p05,
+            bot.cdmx_servidor_percentiles.p10,
+            bot.enigh_d1.mean_mensual,
+          ];
+          cBot.update('none');
+        }
+      });
+    }
+
     // ---------- D6 ----------
     function renderD6(d) {
       if (!d) return;
@@ -108,6 +162,8 @@ export function buildComparativoLiveDataScript(): string {
     // Fire fetches in parallel; each section updates independently.
     Promise.allSettled([
       fetchJson('/ingreso/cdmx-vs-nacional').then(renderD1),
+      fetchJson('/gastos/cdmx-vs-nacional').then(renderD5),
+      fetchJson('/top-vs-bottom').then(renderD7),
       fetchJson('/actividad-cdmx-vs-nacional').then(renderD4),
       fetchJson('/bancarizacion').then(renderD6),
     ]).then(function(results) {

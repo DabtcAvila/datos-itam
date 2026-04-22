@@ -4,7 +4,9 @@ import {
   buildComparativoHero,
   buildD1_Ingreso,
   buildD4_Actividad,
+  buildD5_Gastos,
   buildD6_Bancarizacion,
+  buildD7_TopVsBottom,
   buildComparativoAbout,
 } from '../comparativo/components';
 import { buildComparativoChartsScript } from '../comparativo/charts';
@@ -55,9 +57,9 @@ export function renderComparativoDashboard(): string {
     ${buildD1_Ingreso()}
 
     <!-- D2 decil-servidores (tesis) — próximo commit -->
-    <!-- D5 gastos — próximo commit -->
-    <!-- D7 top-vs-bottom — próximo commit -->
 
+    ${buildD5_Gastos()}
+    ${buildD7_TopVsBottom()}
     ${buildD4_Actividad()}
     ${buildD6_Bancarizacion()}
 
