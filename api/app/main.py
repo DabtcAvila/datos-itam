@@ -18,10 +18,48 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+API_DESCRIPTION = """
+API pública del Observatorio de Datos Públicos Mexicanos.
+
+**Datasets expuestos:**
+- **Servidores públicos CDMX** (schema `cdmx`): 246K registros de servidores
+  públicos de la Ciudad de México.
+- **ENIGH 2024 Nueva Serie** (schema `enigh`): Encuesta Nacional de Ingresos
+  y Gastos de los Hogares 2024, 91K hogares muestra, expandible a 38.8M
+  hogares nacional.
+- **Comparativos cross-dataset** (`/comparativo/*`): análisis CDMX↔ENIGH
+  cuantificados.
+
+**Rigor metodológico:**
+- 13 bounds oficiales INEGI reproducidos al peso (Δ máx 0.078%)
+- Factor-weighted cumulative sum para deciles (NO NTILE)
+- Byte-exact local ≡ Neon verificado vía MD5 cross-DB
+- Tests E2E en cada push validan producción
+
+**Fuente oficial:**
+[Comunicado INEGI 112/25](https://www.inegi.org.mx/contenidos/saladeprensa/boletines/2025/enigh/ENIGH_2024NS.pdf)
+(julio 2025).
+
+**Proyecto académico:** ITAM Bases de Datos 2026.
+"""
+
 app = FastAPI(
-    title="datos-itam API",
-    description="API publica de remuneraciones de servidores publicos de CDMX",
+    title="datos-itam Observatorio API",
+    description=API_DESCRIPTION,
     version="1.0.0",
+    contact={
+        "name": "Observatorio datos-itam",
+        "url": "https://datos-itam.org",
+        "email": "df.avila.diaz@gmail.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    terms_of_service="https://datos-itam.org/terms",
+    servers=[
+        {"url": "https://api.datos-itam.org", "description": "Producción"},
+    ],
     lifespan=lifespan,
 )
 
