@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 from app.database import engine
 from app.rate_limit import limiter
-from app.routers import admin, analytics, auth, catalogos, dashboard, enigh, export, ingest, nombramientos, personas, sectores, servidores
+from app.routers import admin, analytics, auth, catalogos, comparativo, dashboard, enigh, export, ingest, nombramientos, personas, sectores, servidores
 
 
 @asynccontextmanager
@@ -62,6 +62,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "public, max-age=900"
         elif path.startswith("/api/v1/enigh"):
             response.headers["Cache-Control"] = "public, max-age=3600"
+        elif path.startswith("/api/v1/comparativo"):
+            response.headers["Cache-Control"] = "public, max-age=3600"
         elif "/servidores/" in path:
             response.headers["Cache-Control"] = "public, max-age=300"
         return response
@@ -82,6 +84,7 @@ app.include_router(personas.router)
 app.include_router(nombramientos.router)
 app.include_router(ingest.router)
 app.include_router(enigh.router)
+app.include_router(comparativo.router)
 
 
 @app.get("/health")
