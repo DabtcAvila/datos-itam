@@ -1,6 +1,6 @@
 export type DatasetTab = 'cdmx' | 'enigh';
 
-export function buildNavTabs(active: DatasetTab): string {
+export function buildNavTabs(active: DatasetTab | null): string {
   const activeCdmx = active === 'cdmx' ? ' active' : '';
   const activeEnigh = active === 'enigh' ? ' active' : '';
   return `
