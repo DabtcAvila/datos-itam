@@ -97,6 +97,239 @@ export function buildD1_Ingreso(): string {
   `;
 }
 
+// ==================== D2 ====================
+
+export function buildD2_DecilServidores(): string {
+  const d = COMPARATIVO_SEED.d2;
+
+  const decilesRows = d.enighDeciles.map(dec => {
+    // Highlight d2 and d3 (frontera de p50) + d1 (el clásico mapeo crítico)
+    const highlight = (dec.decil === 2 || dec.decil === 3) ? ' class="row-highlight-boundary"' : '';
+    const romano = ['I','II','III','IV','V','VI','VII','VIII','IX','X'][dec.decil - 1];
+    const upperDisplay = dec.decil === 10 ? '—' : `$${formatNumber(Math.round(dec.upper))}`;
+    return `
+      <tr${highlight}>
+        <td><strong>D ${romano}</strong></td>
+        <td class="num">$${formatNumber(Math.round(dec.lower))}</td>
+        <td class="num">${upperDisplay}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const romanoDecil = (n: number) => ['I','II','III','IV','V','VI','VII','VIII','IX','X'][n - 1];
+
+  const escenarioARows = d.escenarioA.map(m => `
+    <tr>
+      <td><strong>${m.p}</strong></td>
+      <td class="num">$${formatNumber(Math.round(m.ingreso))}</td>
+      <td class="num"><strong>D ${romanoDecil(m.decil)}</strong></td>
+    </tr>
+  `).join('');
+
+  const escenarioBRows = d.escenarioB.map(m => `
+    <tr>
+      <td><strong>${m.p}</strong></td>
+      <td class="num">$${formatNumber(Math.round(m.ingreso))}</td>
+      <td class="num"><strong>D ${romanoDecil(m.decil)}</strong></td>
+    </tr>
+  `).join('');
+
+  return `
+    <section class="enigh-section" id="d2-decil-servidores">
+      <h2 class="section-title">2 · Tesis central — ¿en qué decil nacional cae el servidor CDMX?</h2>
+      <p class="section-intro">
+        Mapeamos los percentiles de sueldo CDMX (p25, p50, p75, p90) contra los deciles de ingreso hogar ENIGH nacional
+        bajo dos supuestos distintos. El resultado no es un número único — <strong>depende de la composición del hogar</strong>.
+      </p>
+
+      <div class="comparativo-headline">
+        <div class="comparativo-headline-eyebrow">Narrativa correcta</div>
+        <div class="comparativo-headline-body">
+          ${d.caveatsInterp.narrativaCorrecta}
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="table-section">
+          <div class="escenario-table-title">Escenario A — Perceptor único</div>
+          <div class="escenario-table-subtitle">Supuesto: el servidor CDMX es la única fuente de ingreso del hogar</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Percentil CDMX</th>
+                  <th class="num">Sueldo mensual</th>
+                  <th class="num">Decil ENIGH</th>
+                </tr>
+              </thead>
+              <tbody id="d2-escenario-a-tbody">
+                ${escenarioARows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-section">
+          <div class="escenario-table-title">Escenario B — Servidor + perceptor mediano nacional ($${formatNumber(Math.round(d.ingresoAdicionalB))}/mes)</div>
+          <div class="escenario-table-subtitle">Supuesto: hogar con 2 perceptores — servidor CDMX + persona con mediana nacional P001 "sueldos, salarios o jornal"</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Percentil CDMX</th>
+                  <th class="num">Ingreso hogar</th>
+                  <th class="num">Decil ENIGH</th>
+                </tr>
+              </thead>
+              <tbody id="d2-escenario-b-tbody">
+                ${escenarioBRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="insights">
+        <h3 class="insights-title">Matices de la tesis</h3>
+        <div class="insights-grid">
+          <div class="insight">
+            <span class="insight-icon">&#9679;</span>
+            <span><strong>Frontera p50.</strong> ${d.caveatsInterp.fronteraP50}</span>
+          </div>
+          <div class="insight">
+            <span class="insight-icon">&#9679;</span>
+            <span><strong>Insight principal.</strong> ${d.caveatsInterp.insightPrincipal}</span>
+          </div>
+          <div class="insight">
+            <span class="insight-icon">&#9679;</span>
+            <span><strong>Implicación narrativa.</strong> ${d.caveatsInterp.implicacionNarrativa}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-section">
+        <h3>Bounds de los 10 deciles ENIGH (ingreso mensual del hogar)</h3>
+        <p class="table-subnote">Las filas resaltadas son D II y D III — el servidor mediano CDMX está en la frontera entre ambos.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Decil</th>
+                <th class="num">Lower</th>
+                <th class="num">Upper</th>
+              </tr>
+            </thead>
+            <tbody id="d2-deciles-tbody">
+              ${decilesRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'CDMX: sueldo mensual individual (percentiles). ENIGH: ingreso mensual del hogar (deciles factor-weighted).',
+        fuente: 'cdmx.nombramientos + enigh.concentradohogar + enigh.ingresos (P001)',
+        fuenteUrl: COMPARATIVO_SEED.sourceInegi.url,
+        metodologia: 'Deciles ENIGH reproducen tabulados INEGI ±0.15% en 8/10 deciles. Escenario B usa mediana P001 (n≈106k perceptores) como proxy del segundo perceptor.',
+        validado: COMPARATIVO_SEED.buildDate,
+      })}
+    </section>
+  `;
+}
+
+// ==================== D3 (cierre pensional) ====================
+
+export function buildD3_Pensional(): string {
+  const d = COMPARATIVO_SEED.d3;
+  return `
+    <section class="enigh-section" id="d3-pensional">
+      <h2 class="section-title">7 · Cierre — aportes activos vs jubilaciones actuales</h2>
+      <p class="section-intro">
+        Dos realidades <strong>coexistentes</strong> del sistema de pensiones mexicano, leídas en el momento actual:
+        cuánto aporta mensualmente un servidor activo CDMX y cuánto recibe un hogar jubilado promedio de ENIGH.
+        Los dos números viven en la misma economía pero <strong>no son comparables 1:1</strong>: miden sistemas,
+        generaciones y reglas distintas.
+      </p>
+
+      <!-- Subsección 1: servidor activo -->
+      <h3 class="comparativo-subsection-title">Servidor activo CDMX — triada bruto / neto / deducción</h3>
+      <div class="kpis">
+        <div class="kpi kpi--blue">
+          <div class="kpi-label">Sueldo bruto mensual</div>
+          <div class="kpi-value" id="d3-kpi-bruto" data-target="${d.cdmxMeanBruto}" data-prefix="$">$0</div>
+          <div class="kpi-sub">Promedio ${formatNumber(d.cdmxN)} servidores activos</div>
+        </div>
+        <div class="kpi kpi--green">
+          <div class="kpi-label">Sueldo neto mensual</div>
+          <div class="kpi-value" id="d3-kpi-neto" data-target="${d.cdmxMeanNeto}" data-prefix="$">$0</div>
+          <div class="kpi-sub">Lo que efectivamente recibe el servidor</div>
+        </div>
+        <div class="kpi kpi--yellow">
+          <div class="kpi-label">Deducción total mensual</div>
+          <div class="kpi-value" id="d3-kpi-deduccion" data-target="${d.cdmxMeanDeduccion}" data-prefix="$">$0</div>
+          <div class="kpi-sub">${formatPct(d.cdmxPctDeduccion, 2)} del bruto · incluye ISR + IMSS + SAR + otras</div>
+        </div>
+      </div>
+
+      <!-- Subsección 2: hogar jubilado ENIGH -->
+      <h3 class="comparativo-subsection-title">Hogar jubilado ENIGH — cobertura nacional y monto</h3>
+      <div class="kpis">
+        <div class="kpi kpi--purple">
+          <div class="kpi-label">% hogares nacionales con jubilación</div>
+          <div class="kpi-value" id="d3-kpi-pct-jubilados" data-target="${d.enighPctHogaresJubilados}" data-suffix="%" data-decimals="2">0%</div>
+          <div class="kpi-sub">${formatNumber(d.enighNJubiladosExpandido)} hogares expandidos reciben jubilación</div>
+        </div>
+        <div class="kpi kpi--purple">
+          <div class="kpi-label">Jubilación mensual — solo hogares jubilados</div>
+          <div class="kpi-value" id="d3-kpi-jub-mensual" data-target="${d.enighMeanSoloJubiladosMensual}" data-prefix="$">$0</div>
+          <div class="kpi-sub">Promedio del hogar que sí recibe (trim $${formatNumber(Math.round(d.enighMeanSoloJubiladosTrim))})</div>
+        </div>
+      </div>
+
+      <!-- Insight central destacado -->
+      <div class="comparativo-pensional-insight">
+        <div class="comparativo-pensional-insight-eyebrow">Simultaneidad descriptiva</div>
+        <div class="comparativo-pensional-insight-body">
+          El hogar jubilado mediano nacional recibe aproximadamente <strong>$${formatNumber(Math.round(d.enighMeanSoloJubiladosMensual))}/mes</strong>,
+          una cifra <strong>similar o ligeramente superior</strong> al sueldo mediano de un servidor activo CDMX (${formatCurrency(COMPARATIVO_SEED.d1.cdmxServidorMedian)}/mes).
+          Dos realidades que coexisten hoy en la misma economía — <em>no es predicción</em> de lo que recibirá un servidor CDMX al jubilarse.
+        </div>
+      </div>
+
+      <!-- 5 caveats expandidos como parte del mensaje -->
+      <div class="comparativo-caveats-expanded">
+        <div class="comparativo-caveats-expanded-title">Cinco caveats que forman parte del mensaje</div>
+        <ol>
+          <li><strong>No es comparación actuarial.</strong> El gap deducción CDMX hoy vs jubilación promedio ENIGH hoy <em>no predice</em> el futuro del servidor CDMX. Sistemas y generaciones con reglas distintas (IMSS-1973, IMSS-1997, ISSSTE-2007, cuentas individuales SAR).</li>
+          <li><strong>La deducción no es solo aporte a pensión.</strong> <code>deducciones = bruto - neto</code> es el agregado total: ISR + IMSS/ISSSTE + SAR + créditos personales + otras. No separable a nivel registro, por lo que usarla como proxy del "aporte a pensión" <em>sobreestima</em> el aporte real.</li>
+          <li><strong>cdmx.nombramientos es un snapshot sin fecha.</strong> Incluye todos los registros disponibles (${formatNumber(d.cdmxN)} servidores, uno por persona), sin filtro temporal de altas y bajas.</li>
+          <li><strong>Las jubilaciones ENIGH son cobradas <em>actualmente</em>.</strong> Pertenecen al universo ENIGH 2024 NS (${formatPct(d.enighPctHogaresJubilados, 2)} de hogares), no proyección.</li>
+          <li><strong>La comparación útil es <em>magnitud relativa</em>.</strong> ¿Qué fracción del ingreso activo se aporta vs qué fracción del hogar pensionado proviene de jubilación? No equivalencia 1:1.</li>
+        </ol>
+      </div>
+
+      <!-- Roadmap box - mención a datasets pensionales futuros -->
+      <div class="comparativo-roadmap">
+        <div class="comparativo-roadmap-title">Roadmap · lo que faltaría para análisis pensional</div>
+        <p>
+          Esta es <strong>fotografía actual del sistema</strong>, no proyección actuarial. Para análisis pensional
+          completo se requiere <strong>CONSAR</strong> (saldos AFORE individuales), <strong>IMSS</strong> (densidad
+          real de cotización), <strong>Pensión del Bienestar</strong> (cobertura no contributiva), y modelos
+          actuariales que crucen generaciones de reglas (IMSS-1973, IMSS-1997, ISSSTE-2007, SAR). Estos datasets
+          están en la <strong>hoja de ruta académica</strong> del observatorio.
+        </p>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'CDMX: pesos mensuales / servidor. ENIGH: pesos mensuales / hogar jubilado.',
+        fuente: 'cdmx.nombramientos (sueldo_bruto, sueldo_neto) + enigh.concentradohogar (jubilaciones)',
+        fuenteUrl: COMPARATIVO_SEED.sourceInegi.url,
+        metodologia: 'AVG en CDMX. En ENIGH: factor-weighted sobre columna jubilaciones; % hogares con jubilacion>0.',
+        validado: COMPARATIVO_SEED.buildDate,
+      })}
+    </section>
+  `;
+}
+
 // ==================== D5 ====================
 
 export function buildD5_Gastos(): string {

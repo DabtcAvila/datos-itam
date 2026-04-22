@@ -92,6 +92,66 @@ export function buildComparativoLiveDataScript(): string {
       });
     }
 
+    // ---------- D2 ----------
+    function romanoDecil(n) {
+      return ['I','II','III','IV','V','VI','VII','VIII','IX','X'][n - 1];
+    }
+
+    function renderD2(d) {
+      if (!d) return;
+      var escenarios = Array.isArray(d.escenarios) ? d.escenarios : [];
+      if (escenarios[0] && Array.isArray(escenarios[0].mapeo)) {
+        var tbodyA = document.getElementById('d2-escenario-a-tbody');
+        if (tbodyA) {
+          tbodyA.innerHTML = escenarios[0].mapeo.map(function(m) {
+            return '<tr>' +
+              '<td><strong>' + m.percentil + '</strong></td>' +
+              '<td class="num">$' + fmtN(Math.round(m.ingreso_hogar_supuesto_mensual)) + '</td>' +
+              '<td class="num"><strong>D ' + romanoDecil(m.decil_hogar_enigh) + '</strong></td>' +
+              '</tr>';
+          }).join('');
+        }
+      }
+      if (escenarios[1] && Array.isArray(escenarios[1].mapeo)) {
+        var tbodyB = document.getElementById('d2-escenario-b-tbody');
+        if (tbodyB) {
+          tbodyB.innerHTML = escenarios[1].mapeo.map(function(m) {
+            return '<tr>' +
+              '<td><strong>' + m.percentil + '</strong></td>' +
+              '<td class="num">$' + fmtN(Math.round(m.ingreso_hogar_supuesto_mensual)) + '</td>' +
+              '<td class="num"><strong>D ' + romanoDecil(m.decil_hogar_enigh) + '</strong></td>' +
+              '</tr>';
+          }).join('');
+        }
+      }
+      if (Array.isArray(d.enigh_deciles_mensuales)) {
+        var tbodyD = document.getElementById('d2-deciles-tbody');
+        if (tbodyD) {
+          tbodyD.innerHTML = d.enigh_deciles_mensuales.map(function(dec) {
+            var highlight = (dec.decil === 2 || dec.decil === 3) ? ' class="row-highlight-boundary"' : '';
+            var upperDisplay = dec.decil === 10 ? '—' : '$' + fmtN(Math.round(dec.upper_mensual));
+            return '<tr' + highlight + '>' +
+              '<td><strong>D ' + romanoDecil(dec.decil) + '</strong></td>' +
+              '<td class="num">$' + fmtN(Math.round(dec.lower_mensual)) + '</td>' +
+              '<td class="num">' + upperDisplay + '</td>' +
+              '</tr>';
+          }).join('');
+        }
+      }
+    }
+
+    // ---------- D3 ----------
+    function renderD3(d) {
+      if (!d) return;
+      var cdmx = d.cdmx_aportes_actuales || {};
+      var enigh = d.enigh_jubilaciones_actuales || {};
+      updateKPI('d3-kpi-bruto', cdmx.mean_sueldo_bruto, '$');
+      updateKPI('d3-kpi-neto', cdmx.mean_sueldo_neto, '$');
+      updateKPI('d3-kpi-deduccion', cdmx.mean_deduccion_total, '$');
+      updateKPI('d3-kpi-pct-jubilados', enigh.pct_hogares_con_jubilacion, '', '%', 2);
+      updateKPI('d3-kpi-jub-mensual', enigh.mean_jubilacion_solo_jubilados_mensual, '$');
+    }
+
     // ---------- D5 ----------
     function renderD5(d) {
       if (!d || !Array.isArray(d.rubros)) return;
@@ -162,10 +222,12 @@ export function buildComparativoLiveDataScript(): string {
     // Fire fetches in parallel; each section updates independently.
     Promise.allSettled([
       fetchJson('/ingreso/cdmx-vs-nacional').then(renderD1),
+      fetchJson('/decil-servidores-cdmx').then(renderD2),
       fetchJson('/gastos/cdmx-vs-nacional').then(renderD5),
       fetchJson('/top-vs-bottom').then(renderD7),
       fetchJson('/actividad-cdmx-vs-nacional').then(renderD4),
       fetchJson('/bancarizacion').then(renderD6),
+      fetchJson('/aportes-vs-jubilaciones-actuales').then(renderD3),
     ]).then(function(results) {
       var anyOk = results.some(function(r) { return r.status === 'fulfilled'; });
       if (anyOk) markLive();

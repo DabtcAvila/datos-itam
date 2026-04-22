@@ -3,6 +3,8 @@ import { buildNavTabs } from '../shared/nav';
 import {
   buildComparativoHero,
   buildD1_Ingreso,
+  buildD2_DecilServidores,
+  buildD3_Pensional,
   buildD4_Actividad,
   buildD5_Gastos,
   buildD6_Bancarizacion,
@@ -55,15 +57,12 @@ export function renderComparativoDashboard(): string {
 
     <!-- Orden narrativo: D1 → D2 → D5 → D7 → D4 → D6 → D3 (cierre pensional) -->
     ${buildD1_Ingreso()}
-
-    <!-- D2 decil-servidores (tesis) — próximo commit -->
-
+    ${buildD2_DecilServidores()}
     ${buildD5_Gastos()}
     ${buildD7_TopVsBottom()}
     ${buildD4_Actividad()}
     ${buildD6_Bancarizacion()}
-
-    <!-- D3 aportes-vs-jubilaciones (cierre pensional) — próximo commit -->
+    ${buildD3_Pensional()}
 
     ${buildComparativoAbout()}
 

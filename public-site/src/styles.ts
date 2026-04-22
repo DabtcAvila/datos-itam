@@ -1271,4 +1271,155 @@ td.error-row,
   .gap-bar--female { background: #ec4899; }
   .footer { border-color: #ccc; }
 }
+
+/* ==================== Comparativo (S9) ==================== */
+
+/* D2 narrativa_correcta — big callout prominent */
+.comparativo-headline {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(168, 85, 247, 0.08));
+  border: 1px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 1.5rem 1.75rem;
+  margin: 1.5rem 0;
+}
+.comparativo-headline-eyebrow {
+  font-size: 0.72rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.comparativo-headline-body {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--text);
+  font-weight: 500;
+}
+@media (max-width: 768px) {
+  .comparativo-headline { padding: 1rem 1.1rem; }
+  .comparativo-headline-body { font-size: 1.05rem; }
+}
+
+/* D3 central pensional insight — bigger emphasis than standalone */
+.comparativo-pensional-insight {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.10), rgba(236, 72, 153, 0.06));
+  border: 1px solid var(--yellow);
+  border-left: 4px solid var(--yellow);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+}
+.comparativo-pensional-insight-eyebrow {
+  font-size: 0.72rem;
+  color: var(--yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.comparativo-pensional-insight-body {
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+.comparativo-pensional-insight-body strong {
+  color: var(--yellow);
+}
+
+/* D3 — D6 operational-definition caveat variant (accent border) */
+.caveat-note--definition {
+  border-left: 2px solid var(--accent);
+}
+.caveat-note--definition .caveat-title {
+  color: var(--accent);
+}
+
+/* D3 — expanded caveats block (5 caveats as visible, readable list) */
+.comparativo-caveats-expanded {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--red);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+}
+.comparativo-caveats-expanded-title {
+  font-size: 0.72rem;
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.comparativo-caveats-expanded ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.comparativo-caveats-expanded ol li {
+  margin-bottom: 0.5rem;
+}
+.comparativo-caveats-expanded ol li strong {
+  color: var(--text);
+}
+
+/* D3 — roadmap box */
+.comparativo-roadmap {
+  background: var(--bg-card);
+  border: 1px solid var(--purple);
+  border-left: 4px solid var(--purple);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0 0.5rem;
+}
+.comparativo-roadmap-title {
+  font-size: 0.78rem;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+.comparativo-roadmap p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.comparativo-roadmap p strong {
+  color: var(--text);
+}
+
+/* D3 subsection heading within a section (smaller than section-title) */
+.comparativo-subsection-title {
+  font-size: 1rem;
+  color: var(--text);
+  margin: 1.25rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* D2 escenarios — table cards side-by-side labels */
+.escenario-table-title {
+  font-size: 0.95rem;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.escenario-table-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* D2 — highlight boundary row in deciles table */
+tr.row-highlight-boundary td {
+  background: rgba(59, 130, 246, 0.10);
+  font-weight: 500;
+}
 `;
