@@ -25,6 +25,18 @@ export function buildEnighLiveDataScript(): string {
         });
     }
 
+    // Show an "error" row in a tbody if its fetch failed.
+    function setErrorRow(tbodyId, colspan, msg) {
+      var tbody = document.getElementById(tbodyId);
+      if (!tbody) return;
+      // Only replace if still in loading state (avoid clobbering partial success)
+      var loading = tbody.querySelector('.loading-row');
+      if (!loading) return;
+      tbody.innerHTML = '<tr><td colspan="' + colspan + '" class="loading-row error-row">' +
+        'No fue posible cargar desde el API (' + (msg || 'error') + '). Los valores visibles son del último build validado.' +
+        '</td></tr>';
+    }
+
     function updateKPI(id, target, prefix, suffix, decimals) {
       var el = document.getElementById(id);
       if (!el) return;
@@ -278,20 +290,25 @@ export function buildEnighLiveDataScript(): string {
 
     // Fire fetches in parallel; each section updates independently.
     // Promise.allSettled so one failure doesn't block others.
+    // Each .catch sets a visible error row in its tbody (if present) so the user
+    // knows the live data didn't arrive — without clobbering seed values.
     Promise.allSettled([
-      fetchJson('/validaciones').then(renderValidaciones),
+      fetchJson('/validaciones').then(renderValidaciones)
+        .catch(function(e) { setErrorRow('enigh-val-tbody', 7, e.message); }),
       fetchJson('/hogares/summary').then(renderHogaresSummary),
       fetchJson('/hogares/by-decil').then(function(d) {
         renderDecilTable(d);
         renderDecilChart(d);
-      }),
+      }).catch(function(e) { setErrorRow('enigh-decil-tbody', 6, e.message); }),
       fetchJson('/hogares/by-entidad').then(function(d) {
         renderEntidadTable(d);
         renderEntidadChart(d);
-      }),
+      }).catch(function(e) { setErrorRow('enigh-entidad-tbody', 6, e.message); }),
       fetchJson('/gastos/by-rubro').then(renderGastosRubro),
-      fetchJson('/actividad/agro').then(renderActividadAgro),
-      fetchJson('/actividad/noagro').then(renderActividadNoagro),
+      fetchJson('/actividad/agro').then(renderActividadAgro)
+        .catch(function(e) { setErrorRow('enigh-act-agro-top-tbody', 3, e.message); }),
+      fetchJson('/actividad/noagro').then(renderActividadNoagro)
+        .catch(function(e) { setErrorRow('enigh-act-noagro-top-tbody', 3, e.message); }),
       fetchJson('/poblacion/demographics').then(renderDemografia),
     ]).then(function(results) {
       var anyOk = results.some(function(r) { return r.status === 'fulfilled'; });

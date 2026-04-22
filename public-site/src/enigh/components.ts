@@ -158,7 +158,7 @@ export function buildEnighDeciles(): string {
       <div class="chart-card full-width">
         <h3>Ingreso y gasto mensual promedio por decil</h3>
         <div class="chart-wrapper chart-wrapper--tall">
-          <canvas id="enighDecilChart"></canvas>
+          <canvas id="enighDecilChart" role="img" aria-label="Gráfico de barras e línea mostrando ingreso y gasto mensual promedio por decil de hogar (D I a D X)"></canvas>
         </div>
         <p class="chart-note">
           <strong>Barras azules</strong>: ingreso corriente mensual promedio.
@@ -227,7 +227,7 @@ export function buildEnighGeografia(): string {
       <div class="chart-card full-width">
         <h3>32 entidades ordenadas por ingreso mensual promedio</h3>
         <div class="chart-wrapper chart-wrapper--xtall">
-          <canvas id="enighEntidadChart"></canvas>
+          <canvas id="enighEntidadChart" role="img" aria-label="Gráfico de barras horizontales con las 32 entidades federativas ordenadas por ingreso mensual promedio, Ciudad de México resaltada"></canvas>
         </div>
         <p class="chart-note">
           Barra <span class="legend-swatch legend-swatch--cdmx"></span> <strong>rosa</strong>: Ciudad de México (clave 09), resaltada.
@@ -307,7 +307,7 @@ export function buildEnighGastos(): string {
         <div class="chart-card">
           <h3>Distribución de gasto por rubro</h3>
           <div class="chart-wrapper">
-            <canvas id="enighGastosChart"></canvas>
+            <canvas id="enighGastosChart" role="img" aria-label="Gráfico de dona con los 9 rubros oficiales INEGI del gasto monetario del hogar"></canvas>
           </div>
         </div>
         <div class="chart-card">
@@ -380,7 +380,7 @@ export function buildEnighActividad(): string {
       <div class="chart-card full-width">
         <h3>Participación por decil: dos curvas contrastadas</h3>
         <div class="chart-wrapper">
-          <canvas id="enighActividadChart"></canvas>
+          <canvas id="enighActividadChart" role="img" aria-label="Gráfico de barras comparando participación por decil de actividad agropecuaria (regresiva) vs no agropecuaria (uniforme)"></canvas>
         </div>
         <p class="chart-note">
           Cada barra mide el <strong>porcentaje de hogares con la actividad que cae en ese decil</strong>.
@@ -453,7 +453,7 @@ export function buildEnighDemografia(): string {
         <div class="chart-card">
           <h3>Distribución por sexo</h3>
           <div class="chart-wrapper">
-            <canvas id="enighSexoChart"></canvas>
+            <canvas id="enighSexoChart" role="img" aria-label="Gráfico de dona con distribución de la población por sexo (mujeres y hombres)"></canvas>
           </div>
           <p class="chart-note">
             <strong>${ENIGH_SEED.pctMujeres}%</strong> mujeres /
@@ -464,7 +464,7 @@ export function buildEnighDemografia(): string {
         <div class="chart-card">
           <h3>Distribución por cohorte etaria</h3>
           <div class="chart-wrapper">
-            <canvas id="enighEdadChart"></canvas>
+            <canvas id="enighEdadChart" role="img" aria-label="Gráfico de barras con distribución poblacional por cinco cohortes etarios"></canvas>
           </div>
           <p class="chart-note">
             Cinco cohortes INEGI: niñez (0-14), jóvenes (15-29), adultos medios (30-44),

@@ -1211,6 +1211,28 @@ tr.row-highlight-cdmx:hover td {
   font-style: italic;
 }
 
+/* Error row in tbodies when fetch fails */
+td.error-row,
+.loading-row.error-row {
+  background: var(--red-dim);
+  color: var(--red);
+  border-left: 3px solid var(--red);
+  font-style: normal;
+  text-align: left;
+  padding: 0.9rem 1rem;
+}
+
+/* Insights layout for ENIGH — use same as CDMX but ensure visible hallazgos */
+.enigh-hallazgo-icon {
+  color: var(--green);
+}
+
+@media (max-width: 480px) {
+  .validation-count { font-size: 1.4rem; }
+  .actividad-kpi-coverage { font-size: 1.2rem; }
+  .kpi-value { font-size: 1.4rem; }
+}
+
 /* Responsive adjustments for new elements */
 @media (max-width: 768px) {
   .dataset-tabs { padding: 0 1rem; }
