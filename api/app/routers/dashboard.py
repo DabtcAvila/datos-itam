@@ -22,81 +22,81 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 # Snapshot metrics come from materialized views (see migrations/004_materialized_views.sql).
 # Refresh via POST /api/v1/admin/refresh-materialized-views.
 
-SQL_OVERVIEW = "SELECT * FROM mv_dashboard_overview WHERE key = 1"
+SQL_OVERVIEW = "SELECT * FROM cdmx.mv_dashboard_overview WHERE key = 1"
 
 SQL_SALARY_DISTRIBUTION = """
 SELECT label, count FROM (
     SELECT 'Menos de $5K' AS label, COUNT(*) AS count, 1 AS ord
-    FROM nombramientos WHERE sueldo_bruto < 5000 AND sueldo_bruto IS NOT NULL
+    FROM cdmx.nombramientos WHERE sueldo_bruto < 5000 AND sueldo_bruto IS NOT NULL
     UNION ALL
     SELECT '$5K - $10K', COUNT(*), 2
-    FROM nombramientos WHERE sueldo_bruto >= 5000 AND sueldo_bruto < 10000
+    FROM cdmx.nombramientos WHERE sueldo_bruto >= 5000 AND sueldo_bruto < 10000
     UNION ALL
     SELECT '$10K - $20K', COUNT(*), 3
-    FROM nombramientos WHERE sueldo_bruto >= 10000 AND sueldo_bruto < 20000
+    FROM cdmx.nombramientos WHERE sueldo_bruto >= 10000 AND sueldo_bruto < 20000
     UNION ALL
     SELECT '$20K - $40K', COUNT(*), 4
-    FROM nombramientos WHERE sueldo_bruto >= 20000 AND sueldo_bruto < 40000
+    FROM cdmx.nombramientos WHERE sueldo_bruto >= 20000 AND sueldo_bruto < 40000
     UNION ALL
     SELECT 'Más de $40K', COUNT(*), 5
-    FROM nombramientos WHERE sueldo_bruto >= 40000
+    FROM cdmx.nombramientos WHERE sueldo_bruto >= 40000
 ) sub ORDER BY ord
 """
 
 SQL_AGE_DISTRIBUTION = """
 SELECT label, count FROM (
     SELECT '18-25' AS label, COUNT(*) AS count, 1 AS ord
-    FROM personas WHERE edad BETWEEN 18 AND 25
+    FROM cdmx.personas WHERE edad BETWEEN 18 AND 25
     UNION ALL
     SELECT '26-35', COUNT(*), 2
-    FROM personas WHERE edad BETWEEN 26 AND 35
+    FROM cdmx.personas WHERE edad BETWEEN 26 AND 35
     UNION ALL
     SELECT '36-45', COUNT(*), 3
-    FROM personas WHERE edad BETWEEN 36 AND 45
+    FROM cdmx.personas WHERE edad BETWEEN 36 AND 45
     UNION ALL
     SELECT '46-55', COUNT(*), 4
-    FROM personas WHERE edad BETWEEN 46 AND 55
+    FROM cdmx.personas WHERE edad BETWEEN 46 AND 55
     UNION ALL
     SELECT '56+', COUNT(*), 5
-    FROM personas WHERE edad > 55
+    FROM cdmx.personas WHERE edad > 55
 ) sub ORDER BY ord
 """
 
 SQL_CONTRACT_TYPES = """
 SELECT ct.nombre AS label, COUNT(*) AS count
-FROM nombramientos n
-JOIN cat_tipos_contratacion ct ON n.tipo_contratacion_id = ct.id
+FROM cdmx.nombramientos n
+JOIN cdmx.cat_tipos_contratacion ct ON n.tipo_contratacion_id = ct.id
 GROUP BY ct.nombre
 ORDER BY count DESC
 """
 
 SQL_PERSONAL_TYPES = """
 SELECT tp.nombre AS label, COUNT(*) AS count
-FROM nombramientos n
-JOIN cat_tipos_personal tp ON n.tipo_personal_id = tp.id
+FROM cdmx.nombramientos n
+JOIN cdmx.cat_tipos_personal tp ON n.tipo_personal_id = tp.id
 GROUP BY tp.nombre
 ORDER BY count DESC
 """
 
-SQL_SALARY_BY_AGE = "SELECT label, avg FROM mv_dashboard_salary_by_age ORDER BY ord"
+SQL_SALARY_BY_AGE = "SELECT label, avg FROM cdmx.mv_dashboard_salary_by_age ORDER BY ord"
 
 SQL_SECTORS = (
     "SELECT name, count, avg_salary, avg_male, avg_female "
-    "FROM mv_dashboard_sectors ORDER BY count DESC"
+    "FROM cdmx.mv_dashboard_sectors ORDER BY count DESC"
 )
 
 SQL_TOP_POSITIONS = (
-    "SELECT name, count, avg_salary FROM mv_dashboard_top_positions "
+    "SELECT name, count, avg_salary FROM cdmx.mv_dashboard_top_positions "
     "ORDER BY avg_salary DESC"
 )
 
 SQL_SENIORITY_DISTRIBUTION = (
-    "SELECT label, count_all AS count FROM mv_dashboard_seniority ORDER BY ord"
+    "SELECT label, count_all AS count FROM cdmx.mv_dashboard_seniority ORDER BY ord"
 )
 
 SQL_SALARY_BY_SENIORITY = (
     "SELECT label, avg_salary AS avg, count_with_salary AS count "
-    "FROM mv_dashboard_seniority ORDER BY ord"
+    "FROM cdmx.mv_dashboard_seniority ORDER BY ord"
 )
 
 SQL_BRUTO_NETO_BY_RANGE = """
@@ -105,23 +105,23 @@ SELECT label, avg_bruto, avg_neto, count FROM (
         AVG(sueldo_bruto)::float AS avg_bruto,
         AVG(sueldo_neto)::float AS avg_neto,
         COUNT(*) AS count, 1 AS ord
-    FROM nombramientos
+    FROM cdmx.nombramientos
     WHERE sueldo_bruto < 5000 AND sueldo_bruto IS NOT NULL AND sueldo_neto IS NOT NULL
     UNION ALL
     SELECT '$5K - $10K', AVG(sueldo_bruto)::float, AVG(sueldo_neto)::float, COUNT(*), 2
-    FROM nombramientos
+    FROM cdmx.nombramientos
     WHERE sueldo_bruto >= 5000 AND sueldo_bruto < 10000 AND sueldo_neto IS NOT NULL
     UNION ALL
     SELECT '$10K - $20K', AVG(sueldo_bruto)::float, AVG(sueldo_neto)::float, COUNT(*), 3
-    FROM nombramientos
+    FROM cdmx.nombramientos
     WHERE sueldo_bruto >= 10000 AND sueldo_bruto < 20000 AND sueldo_neto IS NOT NULL
     UNION ALL
     SELECT '$20K - $40K', AVG(sueldo_bruto)::float, AVG(sueldo_neto)::float, COUNT(*), 4
-    FROM nombramientos
+    FROM cdmx.nombramientos
     WHERE sueldo_bruto >= 20000 AND sueldo_bruto < 40000 AND sueldo_neto IS NOT NULL
     UNION ALL
     SELECT 'Más de $40K', AVG(sueldo_bruto)::float, AVG(sueldo_neto)::float, COUNT(*), 5
-    FROM nombramientos
+    FROM cdmx.nombramientos
     WHERE sueldo_bruto >= 40000 AND sueldo_neto IS NOT NULL
 ) sub ORDER BY ord
 """

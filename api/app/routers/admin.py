@@ -13,11 +13,11 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
 MATERIALIZED_VIEWS = [
-    "mv_dashboard_overview",
-    "mv_dashboard_sectors",
-    "mv_dashboard_top_positions",
-    "mv_dashboard_salary_by_age",
-    "mv_dashboard_seniority",
+    "cdmx.mv_dashboard_overview",
+    "cdmx.mv_dashboard_sectors",
+    "cdmx.mv_dashboard_top_positions",
+    "cdmx.mv_dashboard_salary_by_age",
+    "cdmx.mv_dashboard_seniority",
 ]
 
 

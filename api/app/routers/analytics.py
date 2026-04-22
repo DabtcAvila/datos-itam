@@ -15,8 +15,8 @@ WITH agg AS (
         cp.nombre AS nombre,
         AVG(n.sueldo_bruto)::float AS avg_sueldo,
         COUNT(*) AS cnt
-    FROM nombramientos n
-    JOIN cat_puestos cp ON n.puesto_id = cp.id
+    FROM cdmx.nombramientos n
+    JOIN cdmx.cat_puestos cp ON n.puesto_id = cp.id
     WHERE n.sueldo_bruto IS NOT NULL
     GROUP BY cp.id, cp.nombre
     HAVING COUNT(*) >= 5
@@ -41,8 +41,8 @@ WITH agg AS (
         cs.nombre AS nombre,
         AVG(n.sueldo_bruto)::float AS avg_sueldo,
         COUNT(*) AS cnt
-    FROM nombramientos n
-    JOIN cat_sectores cs ON n.sector_id = cs.id
+    FROM cdmx.nombramientos n
+    JOIN cdmx.cat_sectores cs ON n.sector_id = cs.id
     WHERE n.sueldo_bruto IS NOT NULL
     GROUP BY cs.id, cs.nombre
 )
@@ -76,9 +76,9 @@ WITH buckets AS (
              WHEN p.edad > 55 THEN 5 END AS ord,
         n.sueldo_bruto,
         csex.nombre AS sexo
-    FROM nombramientos n
-    JOIN personas p ON n.persona_id = p.id
-    LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
+    FROM cdmx.nombramientos n
+    JOIN cdmx.personas p ON n.persona_id = p.id
+    LEFT JOIN cdmx.cat_sexos csex ON p.sexo_id = csex.id
     WHERE n.sueldo_bruto IS NOT NULL AND p.edad IS NOT NULL
 ),
 agg AS (

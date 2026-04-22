@@ -124,7 +124,7 @@ async def servidor_stats(
         params["puesto_search"] = f"%{filters.puesto_search}%"
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
-    join_puesto = "LEFT JOIN cat_puestos cp ON n.puesto_id = cp.id" if filters.puesto_search else ""
+    join_puesto = "LEFT JOIN cdmx.cat_puestos cp ON n.puesto_id = cp.id" if filters.puesto_search else ""
 
     sql = f"""
     SELECT
@@ -146,9 +146,9 @@ async def servidor_stats(
                   / AVG(n.sueldo_bruto) FILTER (WHERE csex.nombre = 'FEMENINO') * 100)::float
             ELSE NULL
         END AS brecha_genero_pct
-    FROM nombramientos n
-    JOIN personas p ON n.persona_id = p.id
-    LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
+    FROM cdmx.nombramientos n
+    JOIN cdmx.personas p ON n.persona_id = p.id
+    LEFT JOIN cdmx.cat_sexos csex ON p.sexo_id = csex.id
     {join_puesto}
     WHERE {where_sql}
     """
@@ -170,9 +170,9 @@ async def servidor_stats(
             ELSE '120K+'
         END AS rango,
         COUNT(*) AS count
-    FROM nombramientos n
-    JOIN personas p ON n.persona_id = p.id
-    LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
+    FROM cdmx.nombramientos n
+    JOIN cdmx.personas p ON n.persona_id = p.id
+    LEFT JOIN cdmx.cat_sexos csex ON p.sexo_id = csex.id
     {join_puesto}
     WHERE {where_sql} AND n.sueldo_bruto IS NOT NULL
     GROUP BY rango

@@ -19,10 +19,10 @@ async def list_sectores(request: Request, session: AsyncSession = Depends(get_se
         AVG(n.sueldo_bruto)::float AS sueldo_bruto_avg,
         COUNT(*) FILTER (WHERE csex.nombre = 'MASCULINO') AS count_hombres,
         COUNT(*) FILTER (WHERE csex.nombre = 'FEMENINO') AS count_mujeres
-    FROM cat_sectores cs
-    LEFT JOIN nombramientos n ON n.sector_id = cs.id
-    LEFT JOIN personas p ON n.persona_id = p.id
-    LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
+    FROM cdmx.cat_sectores cs
+    LEFT JOIN cdmx.nombramientos n ON n.sector_id = cs.id
+    LEFT JOIN cdmx.personas p ON n.persona_id = p.id
+    LEFT JOIN cdmx.cat_sexos csex ON p.sexo_id = csex.id
     GROUP BY cs.id, cs.nombre
     ORDER BY cs.nombre
     """
@@ -57,10 +57,10 @@ async def _sector_detail(session: AsyncSession, sector_id: int) -> SectorDetailS
                   / AVG(n.sueldo_bruto) FILTER (WHERE csex.nombre = 'FEMENINO') * 100)::float
             ELSE NULL
         END AS brecha_genero_pct
-    FROM cat_sectores cs
-    LEFT JOIN nombramientos n ON n.sector_id = cs.id
-    LEFT JOIN personas p ON n.persona_id = p.id
-    LEFT JOIN cat_sexos csex ON p.sexo_id = csex.id
+    FROM cdmx.cat_sectores cs
+    LEFT JOIN cdmx.nombramientos n ON n.sector_id = cs.id
+    LEFT JOIN cdmx.personas p ON n.persona_id = p.id
+    LEFT JOIN cdmx.cat_sexos csex ON p.sexo_id = csex.id
     WHERE cs.id = :sector_id
     GROUP BY cs.id, cs.nombre
     """
@@ -72,8 +72,8 @@ async def _sector_detail(session: AsyncSession, sector_id: int) -> SectorDetailS
     # Top puestos
     puestos_sql = """
     SELECT cp.nombre AS puesto, COUNT(*) AS count, AVG(n.sueldo_bruto)::float AS sueldo_avg
-    FROM nombramientos n
-    JOIN cat_puestos cp ON n.puesto_id = cp.id
+    FROM cdmx.nombramientos n
+    JOIN cdmx.cat_puestos cp ON n.puesto_id = cp.id
     WHERE n.sector_id = :sector_id
     GROUP BY cp.nombre
     ORDER BY count DESC
