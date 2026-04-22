@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import require_admin
 from app.database import get_session
 from app.models.catalogs import (
     CatNivelSalarial,
@@ -121,7 +121,7 @@ def _parse_date(val: str) -> date | None:
 async def ingest_csv(
     file: UploadFile,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=422, detail="File must be a .csv")

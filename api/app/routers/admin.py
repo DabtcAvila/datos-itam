@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from app.auth import get_current_user
+from app.auth import require_admin
 from app.database import engine
 from app.models.users import User
 from app.rate_limit import limiter
@@ -30,7 +30,7 @@ class RefreshResponse(BaseModel):
 @limiter.limit("5/minute")
 async def refresh_materialized_views(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     """Refresh all dashboard materialized views CONCURRENTLY.
 

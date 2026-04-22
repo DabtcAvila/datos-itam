@@ -1,36 +1,15 @@
 import uuid
 
-
-async def test_register_success(client):
-    u = uuid.uuid4().hex[:8]
-    r = await client.post("/api/v1/auth/register", json={
-        "username": f"user_{u}", "email": f"{u}@test.com", "password": "pass123"
-    })
-    assert r.status_code == 201
-    body = r.json()
-    assert body["username"] == f"user_{u}"
-    assert body["email"] == f"{u}@test.com"
-    assert body["is_active"] is True
-    assert "hashed_password" not in body
-
-
-async def test_register_duplicate(client):
-    u = uuid.uuid4().hex[:8]
-    data = {"username": f"dup_{u}", "email": f"dup_{u}@test.com", "password": "pass123"}
-    r1 = await client.post("/api/v1/auth/register", json=data)
-    assert r1.status_code == 201
-    r2 = await client.post("/api/v1/auth/register", json=data)
-    assert r2.status_code == 409
+from tests.conftest import _create_user_direct, _login
 
 
 async def test_login_success(client):
     u = uuid.uuid4().hex[:8]
-    await client.post("/api/v1/auth/register", json={
-        "username": f"login_{u}", "email": f"login_{u}@test.com", "password": "pass123"
-    })
-    r = await client.post("/api/v1/auth/token", data={
-        "username": f"login_{u}", "password": "pass123"
-    })
+    await _create_user_direct(f"login_{u}", f"login_{u}@test.com", "pass123", is_admin=False)
+    r = await client.post(
+        "/api/v1/auth/token",
+        data={"username": f"login_{u}", "password": "pass123"},
+    )
     assert r.status_code == 200
     body = r.json()
     assert "access_token" in body
@@ -39,27 +18,32 @@ async def test_login_success(client):
 
 async def test_login_wrong_password(client):
     u = uuid.uuid4().hex[:8]
-    await client.post("/api/v1/auth/register", json={
-        "username": f"wrongpw_{u}", "email": f"wrongpw_{u}@test.com", "password": "pass123"
-    })
-    r = await client.post("/api/v1/auth/token", data={
-        "username": f"wrongpw_{u}", "password": "wrongpassword"
-    })
+    await _create_user_direct(f"wrongpw_{u}", f"wrongpw_{u}@test.com", "pass123", is_admin=False)
+    r = await client.post(
+        "/api/v1/auth/token",
+        data={"username": f"wrongpw_{u}", "password": "wrongpassword"},
+    )
     assert r.status_code == 401
 
 
 async def test_me_with_token(client):
     u = uuid.uuid4().hex[:8]
-    await client.post("/api/v1/auth/register", json={
-        "username": f"me_{u}", "email": f"me_{u}@test.com", "password": "pass123"
-    })
-    login = await client.post("/api/v1/auth/token", data={
-        "username": f"me_{u}", "password": "pass123"
-    })
-    token = login.json()["access_token"]
+    await _create_user_direct(f"me_{u}", f"me_{u}@test.com", "pass123", is_admin=False)
+    token = await _login(client, f"me_{u}", "pass123")
     r = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json()["username"] == f"me_{u}"
+    body = r.json()
+    assert body["username"] == f"me_{u}"
+    assert body["is_admin"] is False
+
+
+async def test_me_with_admin_token(client):
+    u = uuid.uuid4().hex[:8]
+    await _create_user_direct(f"admin_{u}", f"admin_{u}@test.com", "pass123", is_admin=True)
+    token = await _login(client, f"admin_{u}", "pass123")
+    r = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert r.json()["is_admin"] is True
 
 
 async def test_me_without_token(client):

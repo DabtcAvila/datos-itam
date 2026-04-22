@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import require_admin
 from app.database import get_session
 from app.models.catalogs import (
     CatNivelSalarial,
@@ -92,7 +92,7 @@ async def get_nombramiento(
 async def create_nombramiento(
     body: NombramientoCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     # Validate persona exists
     persona = await session.get(Persona, body.persona_id)
@@ -113,7 +113,7 @@ async def update_nombramiento(
     nombramiento_id: int,
     body: NombramientoUpdate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     nombramiento = await session.get(Nombramiento, nombramiento_id)
     if nombramiento is None:
@@ -135,7 +135,7 @@ async def update_nombramiento(
 async def delete_nombramiento(
     nombramiento_id: int,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     nombramiento = await session.get(Nombramiento, nombramiento_id)
     if nombramiento is None:

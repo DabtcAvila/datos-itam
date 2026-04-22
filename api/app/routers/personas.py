@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import require_admin
 from app.database import get_session
 from app.models.catalogs import CatSexo
 from app.models.servidores import Nombramiento, Persona
@@ -72,7 +72,7 @@ async def get_persona(
 async def create_persona(
     body: PersonaCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     if body.sexo_id is not None:
         sexo = await session.get(CatSexo, body.sexo_id)
@@ -91,7 +91,7 @@ async def update_persona(
     persona_id: int,
     body: PersonaUpdate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     persona = await session.get(Persona, persona_id)
     if persona is None:
@@ -116,7 +116,7 @@ async def update_persona(
 async def delete_persona(
     persona_id: int,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     persona = await session.get(Persona, persona_id)
     if persona is None:

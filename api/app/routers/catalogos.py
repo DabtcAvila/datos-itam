@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlalchemy import cast, func, select, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import require_admin
 from app.database import get_session
 from app.models.users import User
 from app.rate_limit import limiter
@@ -206,7 +206,7 @@ async def create_catalog_item(
     tipo: str,
     body: dict = Body(...),
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     info = _get_catalog(tipo)
     model = info["model"]
@@ -231,7 +231,7 @@ async def update_catalog_item(
     item_id: int,
     body: dict = Body(...),
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     info = _get_catalog(tipo)
     model = info["model"]
@@ -256,7 +256,7 @@ async def delete_catalog_item(
     tipo: str,
     item_id: int,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     info = _get_catalog(tipo)
     model = info["model"]
