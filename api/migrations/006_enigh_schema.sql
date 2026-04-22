@@ -1,3 +1,12 @@
+-- =============================================================
+-- SUPERSEDED BY 007_enigh_schema.sql (2026-04-21).
+-- This migration was never applied. See
+--   api/docs/enigh-schema-plan-v2.md §1
+-- for the 4 bugs (viviendas.entidad, hogares.tot_integ,
+-- concentradohogar.renta, concentradohogar.decil) that 007 fixes.
+-- Kept here for historical reference only.
+-- =============================================================
+
 -- Migration 006: ENIGH 2024 (Nueva Serie) schema skeleton.
 --
 -- ⚠️  NOT YET EXECUTED. Apply after review. Paired with

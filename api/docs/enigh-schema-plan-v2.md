@@ -41,6 +41,46 @@ Warnings menores detectados (información, no fixes):
 Son artefactos del diseño de cuestionario (secciones no aplicables a ciertos
 universos). Ingresar igual; los descartamos analíticamente.
 
+### 1.bis Hallazgo post-scan: PK surrogate para gastoshogar y gastospersona
+
+Durante la construcción de la migración 007 (sesión S2, 2026-04-21) el
+generador hizo sanity-check de unicidad de PK sobre los CSVs reales. Se
+encontró que la tupla natural asumida en v2 §2 no deduplica las filas:
+
+| Tabla | Tupla natural propuesta | Dupes en CSV 2024 NS |
+|---|---|---:|
+| `gastoshogar` | `(folioviv, foliohog, clave)` | ~836 000 |
+| `gastospersona` | `(folioviv, foliohog, numren, clave)` | ~235 000 |
+
+**Motivo**: cada fila es un evento individual de gasto dentro del
+periodo trimestral, no un agregado por hogar/persona. INEGI registra
+cada ocurrencia como fila separada. La columna `numero_gasto` mencionada
+en el plan v1 no existe en el diccionario ni en el CSV.
+
+**Decisión 2026-04-21 (usuario aprueba opción B con matices)**:
+
+1. Ambas tablas obtienen `id BIGSERIAL PRIMARY KEY` como primera columna.
+2. Columnas naturales (`folioviv`, `foliohog`, `clave`, y `numren` en
+   gastospersona) quedan `NOT NULL` — invariante del cuestionario.
+3. **No** se añade UNIQUE sobre la tupla natural (sería documentar una
+   mentira — no es única por diseño).
+4. Se añade B-tree `idx_<tabla>_nk` sobre la tupla natural para joins
+   y agregaciones por hogar/persona.
+5. `COMMENT ON TABLE` en cada una explica que cada fila es un evento
+   individual, que múltiples filas pueden compartir la tupla natural, y
+   que para agregar hay que usar GROUP BY.
+
+Justificación de la opción B sobre A (dejar PK natural y resolver en S5):
+la fidelidad a INEGI no aplica — INEGI **no publica** PK en sus CSVs; la
+elección de la tupla natural como PK fue nuestra, y esta decisión
+corrige la nuestra, no contradice a INEGI.
+
+Para `agroproductos` y `agroconsumo` el generador encontró un patrón
+distinto: la tupla en v2 §2 (5-tuple) sí tenía dupes, pero extendiéndola
+a 6-tuple `(..., numprod)` en agroproductos y 7-tuple
+`(..., numprod, destino)` en agroconsumo, 0 dupes. Esos son PKs naturales
+bien-formadas; el generador las aplicó automáticamente.
+
 ## 2. Arquitectura v2: 17 tablas agrupadas por grain
 
 La llave determina la cardinalidad. **Ingerimos todas las columnas tal cual
