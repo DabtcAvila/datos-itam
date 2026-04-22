@@ -268,38 +268,218 @@ export function buildEnighGeografia(): string {
   `;
 }
 
-export function buildEnighGastosPlaceholder(): string {
+export function buildEnighGastos(): string {
+  const rubrosSeedRows = ENIGH_SEED.rubros.map(r => `
+    <tr>
+      <td>${r.nombre}</td>
+      <td class="num">${formatPct(r.pct, 2)}</td>
+    </tr>
+  `).join('');
+
+  const decilOptions = [
+    '<option value="">Nacional (todos los hogares)</option>',
+    ...Array.from({ length: 10 }, (_, i) => {
+      const n = i + 1;
+      const roman = ['I','II','III','IV','V','VI','VII','VIII','IX','X'][i];
+      return `<option value="${n}">Decil ${roman} (D${n})</option>`;
+    }),
+  ].join('');
+
   return `
-    <section class="enigh-placeholder-section">
-      <h2 class="section-title">Estructura del gasto</h2>
-      <div class="chart-card">
-        <h3>Próximamente</h3>
-        <p class="chart-note">Nueve rubros oficiales de gasto monetario, filtrables por decil.</p>
+    <section class="enigh-section">
+      <h2 class="section-title">Estructura del gasto monetario</h2>
+      <p class="section-intro">
+        Los <strong>9 rubros oficiales</strong> INEGI del gasto monetario del hogar, con participación
+        porcentual sobre el gasto total. A nivel nacional, <strong>Alimentos, bebidas y tabaco</strong>
+        concentra el <strong>${ENIGH_SEED.rubros[0].pct}%</strong>; los deciles más bajos destinan una
+        proporción aún mayor a este rubro. Usa el selector para ver cómo cambia la estructura por decil.
+      </p>
+
+      <div class="gastos-filter">
+        <label for="enigh-gastos-decil">Decil:</label>
+        <select id="enigh-gastos-decil">
+          ${decilOptions}
+        </select>
+        <span class="gastos-filter-hint" id="enigh-gastos-hint">Gasto total: <strong id="enigh-gastos-total">—</strong>/mes</span>
       </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Distribución de gasto por rubro</h3>
+          <div class="chart-wrapper">
+            <canvas id="enighGastosChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Desglose completo</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rubro</th>
+                  <th class="num">% del gasto monetario</th>
+                </tr>
+              </thead>
+              <tbody id="enigh-gastos-tbody">
+                ${rubrosSeedRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'Porcentaje del gasto monetario total del hogar (mensual)',
+        fuente: 'INEGI ENIGH 2024 NS — tabla concentradohogar (§1.quater plan v2)',
+        fuenteUrl: ENIGH_SEED.sourceInegi.url,
+        metodologia: 'Publicación oficial reproducida desde concentradohogar (summary), NO desde gastoshogar (ledger). Distinción validada S5.',
+        validado: ENIGH_SEED.buildDate,
+      })}
     </section>
   `;
 }
 
-export function buildEnighActividadPlaceholder(): string {
+export function buildEnighActividad(): string {
   return `
-    <section class="enigh-placeholder-section">
-      <h2 class="section-title">Actividad económica: dos regímenes</h2>
-      <div class="chart-card">
-        <h3>Próximamente</h3>
-        <p class="chart-note">Agro regresivo (ratio d1/d10 12.8×) vs noagro uniforme (ratio 1.3×).</p>
+    <section class="enigh-section">
+      <h2 class="section-title">Actividad económica: dos regímenes distintos</h2>
+      <p class="section-intro">
+        La ENIGH registra dos tipos de actividad económica del hogar: <strong>agropecuaria</strong>
+        (subsistencia rural, ganado, productos del campo) y <strong>no-agropecuaria</strong>
+        (comercio, servicios, manufactura). La distribución por decil revela
+        <strong>dos regímenes económicos distintos</strong>: agro es fuertemente regresivo
+        (ratio d1/d10 = ${ENIGH_SEED.agroRatioD1D10}×), noagro es transversal al tejido socioeconómico
+        (ratio d1/d10 = ${ENIGH_SEED.noagroRatioD1D10}×).
+      </p>
+
+      <div class="actividad-kpi-grid">
+        <div class="actividad-kpi actividad-kpi--agro">
+          <div class="actividad-kpi-title">Agro</div>
+          <div class="actividad-kpi-coverage">
+            <span id="enigh-act-agro-pct">${ENIGH_SEED.agroCoberturaPct}%</span> del universo
+          </div>
+          <div class="actividad-kpi-sub">
+            <span id="enigh-act-agro-muestra">${formatNumber(ENIGH_SEED.agroCoberturaMuestra)}</span> hogares muestrales /
+            <span id="enigh-act-agro-exp">${formatNumber(ENIGH_SEED.agroCoberturaExpandida)}</span> expandidos
+          </div>
+          <div class="actividad-kpi-tag tag--regressive">Regresivo · d1 concentra ${ENIGH_SEED.agroShareDecil[0]}%</div>
+        </div>
+        <div class="actividad-kpi actividad-kpi--noagro">
+          <div class="actividad-kpi-title">No agro</div>
+          <div class="actividad-kpi-coverage">
+            <span id="enigh-act-noagro-pct">${ENIGH_SEED.noagroCoberturaPct}%</span> del universo
+          </div>
+          <div class="actividad-kpi-sub">
+            <span id="enigh-act-noagro-muestra">${formatNumber(ENIGH_SEED.noagroCoberturaMuestra)}</span> hogares muestrales /
+            <span id="enigh-act-noagro-exp">${formatNumber(ENIGH_SEED.noagroCoberturaExpandida)}</span> expandidos
+          </div>
+          <div class="actividad-kpi-tag tag--uniform">Uniforme · banda 8.4 – 10.5% por decil</div>
+        </div>
       </div>
+
+      <div class="chart-card full-width">
+        <h3>Participación por decil: dos curvas contrastadas</h3>
+        <div class="chart-wrapper">
+          <canvas id="enighActividadChart"></canvas>
+        </div>
+        <p class="chart-note">
+          Cada barra mide el <strong>porcentaje de hogares con la actividad que cae en ese decil</strong>.
+          Si la actividad fuera perfectamente aleatoria sobre el universo, todos los deciles tendrían 10%.
+          Agro colapsa hacia d1 (subsistencia rural); noagro queda plana (comercio y servicios transversales).
+        </p>
+      </div>
+
+      <div class="charts-grid">
+        <div class="table-section">
+          <h3>Top 5 entidades — Agro</h3>
+          <p class="table-subnote">Perfil: sur/sureste rural</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Entidad</th>
+                  <th class="num">Hogares expandidos</th>
+                </tr>
+              </thead>
+              <tbody id="enigh-act-agro-top-tbody">
+                <tr><td colspan="3" class="loading-row">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-section">
+          <h3>Top 5 entidades — No agro</h3>
+          <p class="table-subnote">Perfil: metropolitano urbano</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Entidad</th>
+                  <th class="num">Hogares expandidos</th>
+                </tr>
+              </thead>
+              <tbody id="enigh-act-noagro-top-tbody">
+                <tr><td colspan="3" class="loading-row">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'Porcentaje de hogares con actividad / decil (suma 100% por serie)',
+        fuente: 'INEGI ENIGH 2024 NS — enigh.agro + enigh.noagro',
+        fuenteUrl: ENIGH_SEED.sourceInegi.url,
+        metodologia: 'Cobertura con DISTINCT (folioviv, foliohog) sobre tabla persona-trabajo-tipoact (S6)',
+        validado: ENIGH_SEED.buildDate,
+      })}
     </section>
   `;
 }
 
-export function buildEnighDemografiaPlaceholder(): string {
+export function buildEnighDemografia(): string {
   return `
-    <section class="enigh-placeholder-section">
-      <h2 class="section-title">Demografía</h2>
-      <div class="chart-card">
-        <h3>Próximamente</h3>
-        <p class="chart-note">130.3M personas expandidas. Sexo, edad y cohortes.</p>
+    <section class="enigh-section">
+      <h2 class="section-title">Demografía nacional</h2>
+      <p class="section-intro">
+        El universo ENIGH expande <strong>${formatNumber(ENIGH_SEED.personasExpandido)} personas</strong>
+        a partir de ${formatNumber(ENIGH_SEED.personasMuestra)} encuestadas. Distribución por sexo y cohortes
+        etarios oficiales INEGI.
+      </p>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Distribución por sexo</h3>
+          <div class="chart-wrapper">
+            <canvas id="enighSexoChart"></canvas>
+          </div>
+          <p class="chart-note">
+            <strong>${ENIGH_SEED.pctMujeres}%</strong> mujeres /
+            <strong>${ENIGH_SEED.pctHombres}%</strong> hombres.
+            El universo femenino rebasa al masculino por ~5.6M personas.
+          </p>
+        </div>
+        <div class="chart-card">
+          <h3>Distribución por cohorte etaria</h3>
+          <div class="chart-wrapper">
+            <canvas id="enighEdadChart"></canvas>
+          </div>
+          <p class="chart-note">
+            Cinco cohortes INEGI: niñez (0-14), jóvenes (15-29), adultos medios (30-44),
+            adultos (45-64), adultos mayores (65+).
+          </p>
+        </div>
       </div>
+
+      ${buildCaveat({
+        unidad: 'Personas expandidas vía factor_pob (distinto de factor del hogar)',
+        fuente: 'INEGI ENIGH 2024 NS — tabla poblacion',
+        fuenteUrl: ENIGH_SEED.sourceInegi.url,
+        metodologia: 'Factor poblacional a nivel persona; cohortes enteras sin traslape',
+        validado: ENIGH_SEED.buildDate,
+      })}
     </section>
   `;
 }

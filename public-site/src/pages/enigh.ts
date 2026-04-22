@@ -7,9 +7,9 @@ import {
   buildEnighValidaciones,
   buildEnighDeciles,
   buildEnighGeografia,
-  buildEnighGastosPlaceholder,
-  buildEnighActividadPlaceholder,
-  buildEnighDemografiaPlaceholder,
+  buildEnighGastos,
+  buildEnighActividad,
+  buildEnighDemografia,
   buildEnighAbout,
 } from '../enigh/components';
 import { buildEnighChartsScript } from '../enigh/charts';
@@ -69,14 +69,14 @@ export function renderEnighDashboard(): string {
     <!-- 3. GEOGRAFÍA -->
     ${buildEnighGeografia()}
 
-    <!-- 4. GASTOS RUBRO — placeholder hasta commit 4 -->
-    ${buildEnighGastosPlaceholder()}
+    <!-- 4. GASTOS RUBRO -->
+    ${buildEnighGastos()}
 
-    <!-- 5. ACTIVIDAD ECONÓMICA — placeholder hasta commit 4 -->
-    ${buildEnighActividadPlaceholder()}
+    <!-- 5. ACTIVIDAD ECONÓMICA -->
+    ${buildEnighActividad()}
 
-    <!-- 6. DEMOGRAFÍA — placeholder hasta commit 4 -->
-    ${buildEnighDemografiaPlaceholder()}
+    <!-- 6. DEMOGRAFÍA -->
+    ${buildEnighDemografia()}
 
     <!-- 8. ABOUT -->
     ${buildEnighAbout()}

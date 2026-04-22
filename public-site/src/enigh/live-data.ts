@@ -171,6 +171,111 @@ export function buildEnighLiveDataScript(): string {
       });
     }
 
+    function renderGastosRubro(data) {
+      if (!data || !Array.isArray(data.rubros)) return;
+      var tbody = document.getElementById('enigh-gastos-tbody');
+      if (tbody) {
+        var rows = data.rubros.map(function(r) {
+          return '<tr>' +
+            '<td>' + r.nombre + '</td>' +
+            '<td class="num">' + r.pct_del_monetario.toFixed(2) + '%</td>' +
+            '</tr>';
+        }).join('');
+        tbody.innerHTML = rows;
+      }
+      var totalEl = document.getElementById('enigh-gastos-total');
+      if (totalEl && typeof data.mean_gasto_mon_trim === 'number') {
+        totalEl.textContent = '$' + Math.round(data.mean_gasto_mon_trim / 3).toLocaleString('es-MX');
+      }
+      whenChartReady(function() {
+        var c = getChartByCanvasId('enighGastosChart');
+        if (!c) return;
+        c.data.labels = data.rubros.map(function(r) { return r.nombre; });
+        c.data.datasets[0].data = data.rubros.map(function(r) { return r.pct_del_monetario; });
+        c.update('none');
+      });
+    }
+
+    function attachGastosSelector() {
+      var sel = document.getElementById('enigh-gastos-decil');
+      if (!sel) return;
+      sel.addEventListener('change', function() {
+        var v = sel.value;
+        var path = v ? '/gastos/by-rubro?decil=' + encodeURIComponent(v) : '/gastos/by-rubro';
+        fetchJson(path).then(renderGastosRubro).catch(function() {});
+      });
+    }
+
+    function renderActividadAgro(d) {
+      if (!d) return;
+      var pctEl = document.getElementById('enigh-act-agro-pct');
+      if (pctEl) pctEl.textContent = d.pct_del_universo.toFixed(2) + '%';
+      var mEl = document.getElementById('enigh-act-agro-muestra');
+      if (mEl) mEl.textContent = fmtN(d.n_hogares_muestra);
+      var eEl = document.getElementById('enigh-act-agro-exp');
+      if (eEl) eEl.textContent = fmtN(d.n_hogares_expandido);
+
+      var tbody = document.getElementById('enigh-act-agro-top-tbody');
+      if (tbody && Array.isArray(d.top_entidades)) {
+        tbody.innerHTML = d.top_entidades.map(function(t, i) {
+          return '<tr><td>' + (i + 1) + '</td><td>' + t.nombre + '</td><td class="num">' + fmtN(t.n_hogares_expandido) + '</td></tr>';
+        }).join('');
+      }
+
+      whenChartReady(function() {
+        var c = getChartByCanvasId('enighActividadChart');
+        if (!c || !Array.isArray(d.por_decil)) return;
+        c.data.datasets[0].data = d.por_decil.map(function(p) { return p.pct_share_actividad; });
+        c.update('none');
+      });
+    }
+
+    function renderActividadNoagro(d) {
+      if (!d) return;
+      var pctEl = document.getElementById('enigh-act-noagro-pct');
+      if (pctEl) pctEl.textContent = d.pct_del_universo.toFixed(2) + '%';
+      var mEl = document.getElementById('enigh-act-noagro-muestra');
+      if (mEl) mEl.textContent = fmtN(d.n_hogares_muestra);
+      var eEl = document.getElementById('enigh-act-noagro-exp');
+      if (eEl) eEl.textContent = fmtN(d.n_hogares_expandido);
+
+      var tbody = document.getElementById('enigh-act-noagro-top-tbody');
+      if (tbody && Array.isArray(d.top_entidades)) {
+        tbody.innerHTML = d.top_entidades.map(function(t, i) {
+          return '<tr><td>' + (i + 1) + '</td><td>' + t.nombre + '</td><td class="num">' + fmtN(t.n_hogares_expandido) + '</td></tr>';
+        }).join('');
+      }
+
+      whenChartReady(function() {
+        var c = getChartByCanvasId('enighActividadChart');
+        if (!c || !Array.isArray(d.por_decil)) return;
+        c.data.datasets[1].data = d.por_decil.map(function(p) { return p.pct_share_actividad; });
+        c.update('none');
+      });
+    }
+
+    function renderDemografia(d) {
+      if (!d) return;
+      whenChartReady(function() {
+        var cSexo = getChartByCanvasId('enighSexoChart');
+        if (cSexo && Array.isArray(d.sexo)) {
+          // Order: mujeres primero visual (pink), hombres segundo (blue)
+          var bySexo = {};
+          d.sexo.forEach(function(x) { bySexo[x.sexo] = x.pct; });
+          cSexo.data.datasets[0].data = [bySexo['mujeres'] || 0, bySexo['hombres'] || 0];
+          cSexo.update('none');
+        }
+        var cEdad = getChartByCanvasId('enighEdadChart');
+        if (cEdad && Array.isArray(d.edad)) {
+          cEdad.data.labels = d.edad.map(function(b) { return b.bucket; });
+          cEdad.data.datasets[0].data = d.edad.map(function(b) { return b.pct; });
+          cEdad.update('none');
+        }
+      });
+    }
+
+    attachGastosSelector();
+
     // Fire fetches in parallel; each section updates independently.
     // Promise.allSettled so one failure doesn't block others.
     Promise.allSettled([
@@ -184,6 +289,10 @@ export function buildEnighLiveDataScript(): string {
         renderEntidadTable(d);
         renderEntidadChart(d);
       }),
+      fetchJson('/gastos/by-rubro').then(renderGastosRubro),
+      fetchJson('/actividad/agro').then(renderActividadAgro),
+      fetchJson('/actividad/noagro').then(renderActividadNoagro),
+      fetchJson('/poblacion/demographics').then(renderDemografia),
     ]).then(function(results) {
       var anyOk = results.some(function(r) { return r.status === 'fulfilled'; });
       if (anyOk) markLive();

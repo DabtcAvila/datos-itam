@@ -8,6 +8,10 @@ export function buildEnighChartsScript(): string {
   const decilLabels = JSON.stringify(['D I', 'D II', 'D III', 'D IV', 'D V', 'D VI', 'D VII', 'D VIII', 'D IX', 'D X']);
   const decilIng = JSON.stringify(ENIGH_SEED.decilesIngMensual);
   const decilGas = JSON.stringify(ENIGH_SEED.decilesGastoMensual);
+  const rubroLabels = JSON.stringify(ENIGH_SEED.rubros.map(r => r.nombre));
+  const rubroPct = JSON.stringify(ENIGH_SEED.rubros.map(r => r.pct));
+  const agroShare = JSON.stringify(ENIGH_SEED.agroShareDecil);
+  const noagroShare = JSON.stringify(ENIGH_SEED.noagroShareDecil);
 
   return `
   <script>
@@ -153,6 +157,179 @@ export function buildEnighChartsScript(): string {
                 grid: { display: false },
                 ticks: { font: { size: 10 } }
               }
+            }
+          }
+        });
+      }
+
+      // Dashboard 4 — Gastos por rubro (doughnut, nacional seed)
+      var gastosCanvas = document.getElementById('enighGastosChart');
+      if (gastosCanvas) {
+        new Chart(gastosCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: ${rubroLabels},
+            datasets: [{
+              data: ${rubroPct},
+              backgroundColor: [
+                'rgba(59, 130, 246, 0.85)',
+                'rgba(168, 85, 247, 0.85)',
+                'rgba(34, 197, 94, 0.85)',
+                'rgba(234, 179, 8, 0.85)',
+                'rgba(236, 72, 153, 0.85)',
+                'rgba(20, 184, 166, 0.85)',
+                'rgba(239, 68, 68, 0.85)',
+                'rgba(99, 102, 241, 0.85)',
+                'rgba(168, 85, 247, 0.55)',
+              ],
+              borderColor: '#141414',
+              borderWidth: 2,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '55%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 10, font: { size: 11 } },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    return ctx.label + ': ' + ctx.raw.toFixed(2) + '%';
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Dashboard 5 — Actividad (dos regímenes) por decil
+      var actCanvas = document.getElementById('enighActividadChart');
+      if (actCanvas) {
+        new Chart(actCanvas, {
+          type: 'bar',
+          data: {
+            labels: ${decilLabels},
+            datasets: [
+              {
+                label: 'Agro (regresivo)',
+                data: ${agroShare},
+                backgroundColor: 'rgba(234, 179, 8, 0.75)',
+                borderColor: 'rgba(234, 179, 8, 1)',
+                borderWidth: 1,
+                borderRadius: 4,
+              },
+              {
+                label: 'No agro (uniforme)',
+                data: ${noagroShare},
+                backgroundColor: 'rgba(59, 130, 246, 0.55)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1,
+                borderRadius: 4,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 16 },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return ctx.dataset.label + ': ' + ctx.raw.toFixed(2) + '%'; }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#262626' },
+                ticks: { callback: function(v) { return v + '%'; } },
+                title: { display: true, text: '% de hogares con la actividad', color: '#71717a', font: { size: 11 } }
+              },
+              x: {
+                grid: { display: false },
+                title: { display: true, text: 'Decil', color: '#71717a', font: { size: 11 } }
+              }
+            }
+          }
+        });
+      }
+
+      // Dashboard 6 — Demografía sexo (doughnut)
+      var sexoCanvas = document.getElementById('enighSexoChart');
+      if (sexoCanvas) {
+        new Chart(sexoCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: ['Mujeres', 'Hombres'],
+            datasets: [{
+              data: [${ENIGH_SEED.pctMujeres}, ${ENIGH_SEED.pctHombres}],
+              backgroundColor: ['rgba(236, 72, 153, 0.85)', 'rgba(59, 130, 246, 0.85)'],
+              borderColor: '#141414',
+              borderWidth: 3,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { usePointStyle: true, pointStyle: 'rectRounded', padding: 16 },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return ctx.label + ': ' + ctx.raw.toFixed(2) + '%'; }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Dashboard 6 — Demografía edad (bar vertical, 5 cohortes)
+      var edadCanvas = document.getElementById('enighEdadChart');
+      if (edadCanvas) {
+        new Chart(edadCanvas, {
+          type: 'bar',
+          data: {
+            labels: ['0-14', '15-29', '30-44', '45-64', '65+'],
+            datasets: [{
+              label: '% poblacional',
+              data: [22.35, 23.50, 21.11, 22.69, 10.36],
+              backgroundColor: 'rgba(168, 85, 247, 0.75)',
+              borderColor: 'rgba(168, 85, 247, 1)',
+              borderWidth: 1,
+              borderRadius: 6,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return ctx.raw.toFixed(2) + '%'; }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#262626' },
+                ticks: { callback: function(v) { return v + '%'; } }
+              },
+              x: { grid: { display: false } }
             }
           }
         });

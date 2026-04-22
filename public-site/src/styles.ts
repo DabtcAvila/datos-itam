@@ -1115,6 +1115,102 @@ tr.row-highlight-cdmx:hover td {
   .chart-wrapper--xtall { height: 560px; }
 }
 
+/* Dashboard 4 — Gastos filter */
+.gastos-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.gastos-filter label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.gastos-filter select {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-width: 220px;
+}
+.gastos-filter select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.gastos-filter-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.gastos-filter-hint strong { color: var(--text); }
+
+/* Dashboard 5 — Actividad two-regime KPI row */
+.actividad-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.actividad-kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.actividad-kpi--agro { border-left: 3px solid var(--yellow); }
+.actividad-kpi--noagro { border-left: 3px solid var(--accent); }
+
+.actividad-kpi-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.actividad-kpi--agro .actividad-kpi-title { color: var(--yellow); }
+.actividad-kpi--noagro .actividad-kpi-title { color: var(--accent); }
+
+.actividad-kpi-coverage {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+  font-variant-numeric: tabular-nums;
+}
+.actividad-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.actividad-kpi-tag {
+  display: inline-block;
+  margin-top: 0.55rem;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.tag--regressive {
+  background: var(--yellow-dim);
+  color: var(--yellow);
+}
+.tag--uniform {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.table-subnote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: -0.5rem 0 0.5rem;
+  font-style: italic;
+}
+
 /* Responsive adjustments for new elements */
 @media (max-width: 768px) {
   .dataset-tabs { padding: 0 1rem; }
