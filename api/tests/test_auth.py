@@ -3,6 +3,18 @@ import uuid
 from tests.conftest import _create_user_direct, _login
 
 
+async def test_register_disabled(client):
+    u = uuid.uuid4().hex[:8]
+    r = await client.post(
+        "/api/v1/auth/register",
+        json={"username": f"user_{u}", "email": f"{u}@test.com", "password": "pass123"},
+    )
+    assert r.status_code == 403
+    detail = r.json()["detail"]
+    assert "disabled" in detail.lower()
+    assert "cli" in detail.lower()
+
+
 async def test_login_success(client):
     u = uuid.uuid4().hex[:8]
     await _create_user_direct(f"login_{u}", f"login_{u}@test.com", "pass123", is_admin=False)

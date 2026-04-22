@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import create_access_token, get_current_user, hash_password, verify_password
+from app.auth import create_access_token, get_current_user, verify_password
 from app.database import get_session
 from app.models.users import User
 from app.schemas.auth import Token, UserCreate, UserResponse
@@ -13,22 +13,14 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 async def register(body: UserCreate, session: AsyncSession = Depends(get_session)):
-    # Check duplicate username or email
-    result = await session.execute(
-        select(User).where((User.username == body.username) | (User.email == body.email))
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "Registration is currently disabled. Admin users are created via CLI "
+            "(see api/scripts/create_admin.py). Contact project owner: "
+            "df.avila.diaz@gmail.com"
+        ),
     )
-    if result.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=409, detail="Username or email already registered")
-
-    user = User(
-        username=body.username,
-        email=body.email,
-        hashed_password=hash_password(body.password),
-    )
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
 
 
 @router.post("/token", response_model=Token)
