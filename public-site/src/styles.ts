@@ -1057,10 +1057,62 @@ th.num { text-align: right; }
 }
 .caveat-list a:hover { text-decoration: underline; }
 
-/* ENIGH — placeholder sections (commits 3-4) */
+/* ENIGH — placeholder sections (commits 4 pending) */
 .enigh-placeholder-section {
   margin-bottom: 1.5rem;
   opacity: 0.6;
+}
+
+/* ENIGH — real sections */
+.enigh-section { margin-bottom: 2rem; }
+
+.section-intro {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: 820px;
+  margin-bottom: 1rem;
+}
+.section-intro strong { color: var(--text); }
+
+.chart-wrapper--tall { height: 420px; }
+.chart-wrapper--xtall { height: 720px; }
+
+.insight-standalone {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+  max-width: 100%;
+}
+
+/* CDMX row highlight in entidad table */
+tr.row-highlight-cdmx td {
+  background: rgba(236, 72, 153, 0.08);
+  border-left: 2px solid var(--pink);
+}
+tr.row-highlight-cdmx:hover td {
+  background: rgba(236, 72, 153, 0.14);
+}
+
+/* Legend swatch dots in chart-note captions */
+.legend-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin: 0 0.1rem;
+}
+.legend-swatch--cdmx { background: rgba(236, 72, 153, 0.85); }
+.legend-swatch--top { background: rgba(34, 197, 94, 0.85); }
+.legend-swatch--default { background: rgba(59, 130, 246, 0.55); }
+
+@media (max-width: 768px) {
+  .chart-wrapper--tall { height: 320px; }
+  .chart-wrapper--xtall { height: 560px; }
 }
 
 /* Responsive adjustments for new elements */

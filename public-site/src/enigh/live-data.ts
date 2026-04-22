@@ -88,11 +88,102 @@ export function buildEnighLiveDataScript(): string {
       if (badge) badge.classList.add('active');
     }
 
+    function getChartByCanvasId(id) {
+      if (typeof Chart === 'undefined') return null;
+      var canvas = document.getElementById(id);
+      if (!canvas) return null;
+      return Chart.getChart(canvas);
+    }
+
+    // Wait until Chart.js has finished loading before updating chart instances.
+    function whenChartReady(cb, retries) {
+      retries = retries == null ? 20 : retries;
+      if (typeof Chart !== 'undefined') { cb(); return; }
+      if (retries <= 0) return;
+      setTimeout(function() { whenChartReady(cb, retries - 1); }, 150);
+    }
+
+    function renderDecilTable(decs) {
+      var tbody = document.getElementById('enigh-decil-tbody');
+      if (!tbody || !Array.isArray(decs)) return;
+      var roman = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+      var rows = decs.map(function(d, i) {
+        return '<tr>' +
+          '<td><strong>D ' + roman[i] + '</strong></td>' +
+          '<td class="num">' + fmtN(d.n_hogares_muestra) + '</td>' +
+          '<td class="num">' + fmtN(d.n_hogares_expandido) + '</td>' +
+          '<td class="num">$' + fmtN(Math.round(d.mean_ing_cor_trim)) + '</td>' +
+          '<td class="num">$' + fmtN(Math.round(d.mean_ing_cor_mensual)) + '</td>' +
+          '<td class="num">$' + fmtN(Math.round(d.mean_gasto_mon_trim)) + '</td>' +
+          '</tr>';
+      }).join('');
+      tbody.innerHTML = rows;
+    }
+
+    function renderDecilChart(decs) {
+      whenChartReady(function() {
+        var c = getChartByCanvasId('enighDecilChart');
+        if (!c || !Array.isArray(decs)) return;
+        c.data.datasets[0].data = decs.map(function(d) { return d.mean_ing_cor_mensual; });
+        c.data.datasets[1].data = decs.map(function(d) { return d.mean_gasto_mon_trim / 3; });
+        c.update('none');
+      });
+    }
+
+    function renderEntidadTable(entidades) {
+      var tbody = document.getElementById('enigh-entidad-tbody');
+      if (!tbody || !Array.isArray(entidades)) return;
+      var rows = entidades.map(function(e, i) {
+        var highlight = e.clave === '09' ? ' class="row-highlight-cdmx"' : '';
+        return '<tr' + highlight + '>' +
+          '<td>' + (i + 1) + '</td>' +
+          '<td>' + e.nombre + '</td>' +
+          '<td class="num">' + fmtN(e.n_hogares_muestra) + '</td>' +
+          '<td class="num">' + fmtN(e.n_hogares_expandido) + '</td>' +
+          '<td class="num">$' + fmtN(Math.round(e.mean_ing_cor_mensual)) + '</td>' +
+          '<td class="num">$' + fmtN(Math.round(e.mean_gasto_mon_trim / 3)) + '</td>' +
+          '</tr>';
+      }).join('');
+      tbody.innerHTML = rows;
+    }
+
+    function renderEntidadChart(entidades) {
+      whenChartReady(function() {
+        var c = getChartByCanvasId('enighEntidadChart');
+        if (!c || !Array.isArray(entidades)) return;
+        var labels = entidades.map(function(e) { return e.nombre; });
+        var values = entidades.map(function(e) { return e.mean_ing_cor_mensual; });
+        var colors = entidades.map(function(e, i) {
+          if (e.clave === '09') return 'rgba(236, 72, 153, 0.85)';   // CDMX highlight
+          if (i === 0) return 'rgba(34, 197, 94, 0.85)';              // #1 highlight
+          return 'rgba(59, 130, 246, 0.55)';
+        });
+        var borders = entidades.map(function(e, i) {
+          if (e.clave === '09') return 'rgba(236, 72, 153, 1)';
+          if (i === 0) return 'rgba(34, 197, 94, 1)';
+          return 'rgba(59, 130, 246, 0.9)';
+        });
+        c.data.labels = labels;
+        c.data.datasets[0].data = values;
+        c.data.datasets[0].backgroundColor = colors;
+        c.data.datasets[0].borderColor = borders;
+        c.update('none');
+      });
+    }
+
     // Fire fetches in parallel; each section updates independently.
     // Promise.allSettled so one failure doesn't block others.
     Promise.allSettled([
       fetchJson('/validaciones').then(renderValidaciones),
       fetchJson('/hogares/summary').then(renderHogaresSummary),
+      fetchJson('/hogares/by-decil').then(function(d) {
+        renderDecilTable(d);
+        renderDecilChart(d);
+      }),
+      fetchJson('/hogares/by-entidad').then(function(d) {
+        renderEntidadTable(d);
+        renderEntidadChart(d);
+      }),
     ]).then(function(results) {
       var anyOk = results.some(function(r) { return r.status === 'fulfilled'; });
       if (anyOk) markLive();

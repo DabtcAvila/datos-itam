@@ -141,27 +141,129 @@ export function buildEnighValidaciones(): string {
   `;
 }
 
-// Placeholder stubs for commits 3+4 — render visible section shells only
-export function buildEnighDecilesPlaceholder(): string {
+export function buildEnighDeciles(): string {
+  const d1Ing = ENIGH_SEED.decilesIngMensual[0];
+  const d10Ing = ENIGH_SEED.decilesIngMensual[9];
+  const ratio = (d10Ing / d1Ing).toFixed(1);
+
   return `
-    <section class="enigh-placeholder-section">
+    <section class="enigh-section">
       <h2 class="section-title">Ingresos y gastos por decil</h2>
-      <div class="chart-card">
-        <h3>Próximamente</h3>
-        <p class="chart-note">Distribución por decil con 10 niveles monotónicos, metodología factor-weighted cumulative sum.</p>
+      <p class="section-intro">
+        La ENIGH clasifica a todos los hogares nacionales en 10 grupos iguales ordenados por
+        ingreso (deciles). Cada decil contiene el 10% de los hogares. La distancia entre decil I
+        (más bajo) y decil X (más alto) es la medida oficial de desigualdad.
+      </p>
+
+      <div class="chart-card full-width">
+        <h3>Ingreso y gasto mensual promedio por decil</h3>
+        <div class="chart-wrapper chart-wrapper--tall">
+          <canvas id="enighDecilChart"></canvas>
+        </div>
+        <p class="chart-note">
+          <strong>Barras azules</strong>: ingreso corriente mensual promedio.
+          <strong>Línea amarilla</strong>: gasto monetario mensual promedio.
+          Ambas series son monotónicas — cada decil gana y gasta más que el anterior.
+        </p>
       </div>
+
+      <div class="insight insight-standalone">
+        <span class="insight-icon">&#9679;</span>
+        <span>
+          El ingreso del decil X ($${formatNumber(Math.round(d10Ing))}/mes) es
+          <strong>${ratio} veces</strong> el del decil I ($${formatNumber(Math.round(d1Ing))}/mes).
+          El promedio nacional mensual de <strong>$${formatNumber(Math.round(ENIGH_SEED.meanIngCorMensual))}</strong>
+          reproduce al peso la cifra oficial INEGI trimestral de
+          <strong>$${formatNumber(ENIGH_SEED.oficialIngCorTrim)}</strong> (Δ −0.0002%).
+        </span>
+      </div>
+
+      <div class="table-section">
+        <h3>Tabla completa: los 10 deciles</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Decil</th>
+                <th class="num">Hogares (muestra)</th>
+                <th class="num">Hogares (expandidos)</th>
+                <th class="num">Ingreso trim</th>
+                <th class="num">Ingreso mensual</th>
+                <th class="num">Gasto trim</th>
+              </tr>
+            </thead>
+            <tbody id="enigh-decil-tbody">
+              <tr><td colspan="6" class="loading-row">Cargando desde API…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'Trimestrales nativos del microdato; mensuales = trim ÷ 3 (convención INEGI)',
+        fuente: 'INEGI ENIGH 2024 NS — tabla concentradohogar',
+        fuenteUrl: ENIGH_SEED.sourceInegi.url,
+        metodologia: 'Deciles construidos con factor-weighted cumulative sum (estándar INEGI, NO NTILE simple)',
+        validado: ENIGH_SEED.buildDate,
+      })}
     </section>
   `;
 }
 
-export function buildEnighGeografiaPlaceholder(): string {
+export function buildEnighGeografia(): string {
   return `
-    <section class="enigh-placeholder-section">
-      <h2 class="section-title">Geografía económica</h2>
-      <div class="chart-card">
-        <h3>Próximamente</h3>
-        <p class="chart-note">Ingreso mensual por hogar en las 32 entidades federativas.</p>
+    <section class="enigh-section">
+      <h2 class="section-title">Geografía económica por entidad federativa</h2>
+      <p class="section-intro">
+        Ingreso mensual promedio por hogar en las 32 entidades federativas.
+        <strong>${ENIGH_SEED.topEntidadNombre}</strong> encabeza con
+        <strong>$${formatNumber(Math.round(ENIGH_SEED.topEntidadIngMensual))}/mes</strong>;
+        la <strong>Ciudad de México</strong> aparece en el lugar
+        <strong>${ENIGH_SEED.cdmxRanking}°</strong> con
+        <strong>$${formatNumber(Math.round(ENIGH_SEED.cdmxIngMensual))}/mes</strong>.
+        Contra-intuición cuantificada: el centro político no es el primer lugar económico.
+      </p>
+
+      <div class="chart-card full-width">
+        <h3>32 entidades ordenadas por ingreso mensual promedio</h3>
+        <div class="chart-wrapper chart-wrapper--xtall">
+          <canvas id="enighEntidadChart"></canvas>
+        </div>
+        <p class="chart-note">
+          Barra <span class="legend-swatch legend-swatch--cdmx"></span> <strong>rosa</strong>: Ciudad de México (clave 09), resaltada.
+          Barra <span class="legend-swatch legend-swatch--top"></span> <strong>verde</strong>: entidad en primer lugar.
+          Ordenado descendente por ingreso.
+        </p>
       </div>
+
+      <div class="table-section">
+        <h3>Tabla ordenable: 32 entidades</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Entidad</th>
+                <th class="num">Hogares (muestra)</th>
+                <th class="num">Hogares (expandidos)</th>
+                <th class="num">Ingreso mensual</th>
+                <th class="num">Gasto mensual</th>
+              </tr>
+            </thead>
+            <tbody id="enigh-entidad-tbody">
+              <tr><td colspan="6" class="loading-row">Cargando desde API…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      ${buildCaveat({
+        unidad: 'Mensual (ingreso corriente y gasto monetario por hogar)',
+        fuente: 'INEGI ENIGH 2024 NS — hogares.entidad vía cat_entidad',
+        fuenteUrl: ENIGH_SEED.sourceInegi.url,
+        metodologia: 'Factor-weighted por entidad (clave INEGI 01-32); LEFT(ubica_geo,2) = entidad',
+        validado: ENIGH_SEED.buildDate,
+      })}
     </section>
   `;
 }

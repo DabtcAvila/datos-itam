@@ -5,8 +5,8 @@ import {
   buildEnighKPIs,
   buildEnighInsights,
   buildEnighValidaciones,
-  buildEnighDecilesPlaceholder,
-  buildEnighGeografiaPlaceholder,
+  buildEnighDeciles,
+  buildEnighGeografia,
   buildEnighGastosPlaceholder,
   buildEnighActividadPlaceholder,
   buildEnighDemografiaPlaceholder,
@@ -63,11 +63,11 @@ export function renderEnighDashboard(): string {
     <h2 class="section-title">Reproducibilidad contra publicación oficial INEGI</h2>
     ${buildEnighValidaciones()}
 
-    <!-- 2. DECIL — placeholder hasta commit 3 -->
-    ${buildEnighDecilesPlaceholder()}
+    <!-- 2. DECIL -->
+    ${buildEnighDeciles()}
 
-    <!-- 3. GEOGRAFÍA — placeholder hasta commit 3 -->
-    ${buildEnighGeografiaPlaceholder()}
+    <!-- 3. GEOGRAFÍA -->
+    ${buildEnighGeografia()}
 
     <!-- 4. GASTOS RUBRO — placeholder hasta commit 4 -->
     ${buildEnighGastosPlaceholder()}
