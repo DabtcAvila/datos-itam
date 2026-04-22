@@ -10,6 +10,7 @@ class User(SQLModel, table=True):
     email: str = Field(max_length=100, unique=True)
     hashed_password: str = Field(max_length=200)
     is_active: bool = Field(default=True)
+    is_admin: bool = Field(default=False)
     created_at: datetime.datetime = Field(
         default_factory=lambda: datetime.datetime.utcnow()
     )
