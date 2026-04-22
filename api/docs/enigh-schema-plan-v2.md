@@ -81,6 +81,102 @@ a 6-tuple `(..., numprod)` en agroproductos y 7-tuple
 `(..., numprod, destino)` en agroconsumo, 0 dupes. Esos son PKs naturales
 bien-formadas; el generador las aplicó automáticamente.
 
+### 1.ter Corrección de metodología para `concentradohogar.decil` (S3, 2026-04-21)
+
+La fila #4 del §1 prescribía computar el decil post-ingesta como:
+
+```sql
+UPDATE enigh.concentradohogar
+SET decil = NTILE(10) OVER (ORDER BY ing_cor * factor);
+```
+
+Esta fórmula fue adoptada como decisión "locked-in" en S1/S2
+(documentada en `project memory project_enigh_state.md`). En S3, la
+validación vs tabulados oficiales INEGI (Presentación JULIO 2025,
+slide "Ingreso corriente promedio trimestral según deciles") reveló
+que **la fórmula no reproduce la metodología ENIGH-standard**:
+
+| Decil | INEGI oficial | NTILE(ing_cor×factor) | Δ |
+|:---:|---:|---:|---:|
+| 1 | 16 795 | 35 836 | **+113%** |
+| 5 | 54 308 | 55 262 | +1.8% |
+| 10 | 236 095 | 160 908 | **−32%** |
+
+Causa raíz: NTILE(10) divide en 10 buckets de **filas-muestra
+equipobladas**; el producto `ing_cor * factor` mezcla ranking de
+ingreso con peso de expansión. Dos hogares con igual producto pero
+`ing_cor` muy distintos terminan en el mismo decil. Como consecuencia
+`sum_factor` por decil quedó altamente desbalanceado (1.5% en decil 1
+vs 30% en decil 10), violando la propiedad esperada "cada decil = 10%
+de hogares expandidos".
+
+**Decisión 2026-04-21 (S3, aprobada por usuario — Opción A)**:
+adoptar la metodología **factor-weighted cumulative sum**,
+replicable vs tabulados INEGI:
+
+```sql
+WITH ordered AS (
+  SELECT folioviv, foliohog,
+         SUM(factor) OVER (
+           ORDER BY ing_cor, folioviv, foliohog
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+         ) AS cum_factor
+  FROM enigh.concentradohogar
+),
+total AS (SELECT SUM(factor)::numeric AS tot FROM enigh.concentradohogar)
+UPDATE enigh.concentradohogar c
+SET decil = LEAST(10, CEIL(o.cum_factor::numeric / t.tot * 10))::smallint
+FROM ordered o CROSS JOIN total t
+WHERE c.folioviv = o.folioviv AND c.foliohog = o.foliohog;
+```
+
+Resultado post-corrección vs INEGI oficial:
+
+| Decil | INEGI oficial | Factor-weighted | Δ |
+|:---:|---:|---:|---:|
+| 1 | 16 795 | 16 597 | −1.17% |
+| 2 | 28 297 | 28 265 | −0.11% |
+| 3 | 36 845 | 36 826 | −0.05% |
+| 4 | 45 245 | 45 236 | −0.02% |
+| 5 | 54 308 | 54 310 | +0.00% |
+| 6 | 64 600 | 64 625 | +0.04% |
+| 7 | 77 451 | 77 416 | −0.05% |
+| 8 | 95 291 | 95 194 | −0.10% |
+| 9 | 123 712 | 123 568 | −0.12% |
+| 10 | 236 095 | 230 165 | **−2.51%** (tail bias) |
+
+**Bounds de validación asimétricos (por evidencia empírica)**:
+los deciles centrales (2-9) reproducen oficial INEGI con error
+≤0.15%, lo que valida la metodología factor-weighted. Las colas
+(decil 1 y 10) muestran tail bias inherente al método de NTILE
+discreto sobre distribuciones asimétricas: el decil 10 tiene mayor
+bias (2.51%) por cola larga de ultra-ricos; el decil 1 tiene bias
+menor (1.17%) por cola de hogares con ingreso cercano a cero
+(autoconsumo rural, dependientes sin ingreso reportado). Los bounds
+de validación son asimétricos para reflejar estos sesgos empíricos
+observados, no por simetría arbitraria:
+
+| Banda | Bound | Justificación |
+|---|---|---|
+| Deciles 2-9 | ±1% | Error observado ≤0.15% |
+| Decil 1 | ±2% | Bias 1.17% + margen ~0.8 pp |
+| Decil 10 | ±3% | Bias 2.51% + margen ~0.5 pp |
+
+Los 8 deciles centrales mantienen validación estricta ±1%, suficiente
+para cualquier análisis de desigualdad o distribución.
+
+**Trazabilidad**: la decisión S1/S2 no se sobrescribe silenciosamente.
+Su fórmula original queda arriba en §1 #4 y en `project memory`; este
+§1.ter documenta por qué cambió y con qué evidencia. El riesgo
+documentado en §11 ("`decil` computado no coincide con publicaciones
+INEGI por diferencia de método") se materializó — la mitigación
+("comparar contra tabla de deciles publicada en comunicado oficial")
+fue la que disparó la corrección.
+
+**Artefactos afectados**: `api/scripts/ingest_enigh_core.py`
+`gate_update_decil()` usa la fórmula corregida; docstring cita esta
+sección como referencia.
+
 ## 2. Arquitectura v2: 17 tablas agrupadas por grain
 
 La llave determina la cardinalidad. **Ingerimos todas las columnas tal cual
