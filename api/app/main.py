@@ -47,6 +47,25 @@ app.add_middleware(
 WRITE_PREFIXES = ("/api/v1/auth", "/api/v1/personas", "/api/v1/nombramientos", "/api/v1/ingest", "/api/v1/admin")
 
 
+def _set_public_cache(response, cache_value: str) -> None:
+    """Set Cache-Control and ensure Vary: Origin.
+
+    Why Vary: Origin: CORSMiddleware only sets Access-Control-Allow-Origin
+    when the request has an Origin header. If a non-browser client (curl
+    without -H Origin, healthcheck, prefetcher) hits a cacheable endpoint
+    first, the CDN caches the response WITHOUT the CORS header. Subsequent
+    browser requests get that cached response and fail CORS. Setting
+    Vary: Origin forces the CDN to key cache entries by URL + Origin so
+    browser and non-browser responses don't collide.
+    """
+    response.headers["Cache-Control"] = cache_value
+    existing_vary = response.headers.get("Vary", "")
+    vary_parts = [v.strip() for v in existing_vary.split(",") if v.strip()]
+    if not any(v.lower() == "origin" for v in vary_parts):
+        vary_parts.append("Origin")
+    response.headers["Vary"] = ", ".join(vary_parts)
+
+
 class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -55,17 +74,17 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
         if any(path.startswith(p) for p in WRITE_PREFIXES):
             response.headers["Cache-Control"] = "no-store"
         elif "/catalogos/" in path or path.startswith("/api/v1/sectores"):
-            response.headers["Cache-Control"] = "public, max-age=3600"
+            _set_public_cache(response, "public, max-age=3600")
         elif path.startswith("/api/v1/dashboard"):
-            response.headers["Cache-Control"] = "public, max-age=3600"
+            _set_public_cache(response, "public, max-age=3600")
         elif path.startswith("/api/v1/analytics"):
-            response.headers["Cache-Control"] = "public, max-age=900"
+            _set_public_cache(response, "public, max-age=900")
         elif path.startswith("/api/v1/enigh"):
-            response.headers["Cache-Control"] = "public, max-age=3600"
+            _set_public_cache(response, "public, max-age=3600")
         elif path.startswith("/api/v1/comparativo"):
-            response.headers["Cache-Control"] = "public, max-age=3600"
+            _set_public_cache(response, "public, max-age=3600")
         elif "/servidores/" in path:
-            response.headers["Cache-Control"] = "public, max-age=300"
+            _set_public_cache(response, "public, max-age=300")
         return response
 
 
