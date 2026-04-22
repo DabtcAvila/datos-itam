@@ -1,17 +1,19 @@
 import { renderDashboard } from './pages/dashboard';
+import { renderEnighDashboard } from './pages/enigh';
 import { stats } from './data/stats';
 
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    const path = url.pathname.replace(/\/$/, '') || '/';
 
     // Health check
-    if (url.pathname === '/health') {
+    if (path === '/health') {
       return new Response('OK', { status: 200 });
     }
 
     // API: raw stats JSON
-    if (url.pathname === '/api/stats') {
+    if (path === '/api/stats') {
       return new Response(JSON.stringify(stats, null, 2), {
         headers: {
           'Content-Type': 'application/json;charset=UTF-8',
@@ -21,8 +23,14 @@ export default {
       });
     }
 
-    // Dashboard for all other routes
-    const html = renderDashboard();
+    let html: string;
+    if (path === '/enigh') {
+      html = renderEnighDashboard();
+    } else if (path === '/cdmx') {
+      html = renderDashboard();
+    } else {
+      html = renderDashboard();
+    }
 
     return new Response(html, {
       headers: {

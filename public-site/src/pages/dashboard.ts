@@ -1,5 +1,6 @@
 import { CSS } from '../styles';
 import { stats } from '../data/stats';
+import { buildNavTabs } from '../shared/nav';
 import { buildHero, buildInsights, buildKPIs, buildSectorFilter, buildSalaryStats, buildBrutoNeto, buildGenderAnalysis, buildGenderGapTable, buildTopPositionsTable, buildAboutSection } from '../dashboard/components';
 import { buildChartsScript } from '../dashboard/charts';
 import { buildLiveDataScript } from '../dashboard/live-data';
@@ -45,6 +46,8 @@ export function renderDashboard(): string {
       <span class="header-badge">Fuente: Datos Abiertos CDMX</span>
     </div>
   </header>
+
+  ${buildNavTabs('cdmx')}
 
   <main class="container">
 

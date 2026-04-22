@@ -891,6 +891,187 @@ tr:hover td { background: var(--bg-hover); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-label { font-size: 0.8rem; color: var(--text-secondary); }
 
+/* Dataset nav tabs (shared CDMX/ENIGH) */
+.dataset-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 2rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dataset-tabs::-webkit-scrollbar { display: none; }
+
+.dataset-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  color: var(--text-muted);
+  padding: 0.75rem 1.1rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dataset-tab:hover {
+  color: var(--text);
+  background: var(--bg-card);
+}
+.dataset-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  background: var(--bg-card);
+}
+.dataset-tab-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.dataset-tab.active .dataset-tab-title { color: var(--accent); }
+.dataset-tab-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ENIGH — seed-note banner */
+.enigh-seed-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  max-width: 800px;
+  line-height: 1.5;
+}
+.enigh-seed-note strong { color: var(--text); }
+
+/* ENIGH — validation section header */
+.validation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.validation-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.validation-count {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: var(--green);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.validation-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.validation-delta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.validation-delta strong {
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ENIGH — badges OK/FAIL for validaciones table */
+.badge--pass {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.badge--fail {
+  background: var(--red-dim);
+  color: var(--red);
+}
+
+/* ENIGH — unit chip (mensual/trimestral) */
+.unit-chip {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* ENIGH — delta cell coloring */
+td.num.delta-ok { color: var(--green); font-variant-numeric: tabular-nums; }
+td.num.delta-fail { color: var(--red); font-variant-numeric: tabular-nums; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+th.num { text-align: right; }
+
+/* ENIGH — caveat note (visible, not hidden) */
+.caveat-note {
+  margin-top: 1.25rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--yellow);
+  border-radius: 6px;
+}
+.caveat-title {
+  font-size: 0.72rem;
+  color: var(--yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.caveat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.3rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.caveat-list li strong {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.caveat-list a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.caveat-list a:hover { text-decoration: underline; }
+
+/* ENIGH — placeholder sections (commits 3-4) */
+.enigh-placeholder-section {
+  margin-bottom: 1.5rem;
+  opacity: 0.6;
+}
+
+/* Responsive adjustments for new elements */
+@media (max-width: 768px) {
+  .dataset-tabs { padding: 0 1rem; }
+  .dataset-tab { padding: 0.6rem 0.85rem; }
+  .dataset-tab-sub { display: none; }
+  .validation-count { font-size: 1.6rem; }
+  .caveat-list { grid-template-columns: 1fr; }
+}
+
 /* Print styles */
 @media print {
   body {
