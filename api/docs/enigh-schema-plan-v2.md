@@ -177,6 +177,84 @@ fue la que disparó la corrección.
 `gate_update_decil()` usa la fórmula corregida; docstring cita esta
 sección como referencia.
 
+### 1.quater Distinción semántica `gastoshogar` (eventos) vs `concentradohogar.gasto_mon` (agregados oficiales) — S5, 2026-04-21
+
+Hallazgo arquitectónico de Gate 2 S5: las dos no son equivalentes y deben
+documentarse explícitamente porque es la diferencia entre análisis
+granular y validación contra publicaciones oficiales.
+
+**`gastoshogar`** — tabla de **eventos individuales de gasto**
+(transacciones). Cada fila es una ocurrencia registrada por el hogar
+durante el periodo trimestral de referencia: qué se compró, cuándo,
+con qué forma de pago, en qué tipo de establecimiento. Múltiples filas
+comparten `(folioviv, foliohog, clave)` por diseño del cuestionario
+(836K dupes empíricas — ver §1.bis). Volumen: **5 311 497 filas**.
+
+**`concentradohogar.gasto_mon` y rubros agregados** (`alimentos`,
+`transporte`, `educa_espa`, `vivienda`, `personales`, `limpieza`,
+`vesti_calz`, `salud`, `transf_gas`) — **agregados oficiales INEGI por
+hogar** con metodología propia que integra contribuciones de
+`gastoshogar` + `gastospersona` + correcciones internas. Una fila por
+hogar. Volumen: **91 414 filas** (= un valor por hogar entrevistado).
+
+**Las dos NO son equivalentes**. Verificación empírica S5 Gate 2
+(2026-04-21):
+
+| Operacionalización | Valor mensual / hogar | vs oficial 15 891 |
+|---|---:|---:|
+| `Σ(gastoshogar.gasto_tri × factor) / Σ(hogares.factor) / 3` | 14 908 | −6.18 % |
+| `Σ(concentradohogar.gasto_mon × hogares.factor) / Σ(hogares.factor) / 3` | **15 891.46** | **+0.003 %** |
+
+`concentradohogar` reproduce las **9 cifras del cuadro 2 del Comunicado
+112/25 al peso** (delta máximo 0.078 % en 11 validaciones HIGH
+simultáneas):
+
+| Rubro | Oficial $/mes | Empírico (concentradohogar) | Δ |
+|---|---:|---:|---:|
+| Alimentos, bebidas y tabaco | 5 994 | 5 994.01 | +0.000% |
+| Transporte y comunicaciones | 3 106 | 3 106.39 | +0.013% |
+| Educación y esparcimiento | 1 531 | 1 530.94 | −0.004% |
+| Vivienda y servicios | 1 449 | 1 448.69 | −0.021% |
+| Cuidados personales | 1 236 | 1 236.28 | +0.023% |
+| Enseres / limpieza casa | 1 005 | 1 004.73 | −0.026% |
+| Vestido y calzado | 610 | 609.98 | −0.003% |
+| Salud | 535 | 535.09 | +0.017% |
+| Transferencias y otros | 425 | 425.33 | +0.078% |
+| **TOTAL gasto monetario** | **15 891** | **15 891.46** | **+0.003%** |
+
+Esto confirma que `concentradohogar` es la fuente correcta para
+**validación contra publicaciones oficiales** y que `gastoshogar`
+representa **~93.81 %** del gasto monetario oficial — los ~6.19 %
+restantes vienen de `gastospersona` + correcciones metodológicas que
+INEGI aplica al construir `concentradohogar`.
+
+**Implicación operativa para diseño de endpoints S7+**:
+
+| Pregunta analítica | Tabla a usar |
+|---|---|
+| "¿Cuánto gastan los hogares en alimentos?" (cifra oficial) | `concentradohogar.alimentos` |
+| "¿Cuántas transacciones de alimentos por mes?" | `gastoshogar` filtrado por rubro |
+| "¿Dónde compran los hogares (mercado, super, internet)?" | `gastoshogar.lugar_comp` |
+| "¿Cómo pagan (efectivo, tarjeta, app)?" | `gastoshogar.forma_pag1` |
+| "Distribución del gasto por decil de ingreso" | `concentradohogar` joined con decil |
+| "Gasto en restaurantes vs comida en casa" | `gastoshogar` con clave + lugar_comp |
+| "¿Cuánto del gasto monetario nacional pasa por gastoshogar?" | razón Σ ledger / Σ summary (~93.8%) |
+
+Como regla: validación oficial → `concentradohogar`; análisis granular
+de consumo → `gastoshogar`. Endpoints públicos que citen "según ENIGH
+2024" deben venir de `concentradohogar` para defender la cifra.
+
+**Lección permanente acumulada**: cuando una tabla es "ledger" (eventos)
+y existe una "summary" (agregados oficiales), validar contra la summary
+para gates oficiales y reportar la contribución del ledger como INFO.
+La summary ya integra correcciones metodológicas que el ledger no
+captura. Convertir potencial bug en validación adicional documentada.
+
+**Artefactos afectados**: `api/scripts/ingest_enigh_gastos.py`
+docstring sección "Distinción semántica" + `_validate_inegi_bounds()`
+con 10 bounds HIGH desde concentradohogar + 1 MED desde gastoshogar +
+3 INFO. Re-validación S5 Gate 2 reportó 11/11 bounds passing.
+
 ## 2. Arquitectura v2: 17 tablas agrupadas por grain
 
 La llave determina la cardinalidad. **Ingerimos todas las columnas tal cual
