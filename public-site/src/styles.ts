@@ -282,6 +282,7 @@ body {
 
 .sector-filter select {
   flex: 1;
+  min-width: 0;
   max-width: 500px;
   padding: 0.5rem 0.75rem;
   background: var(--bg-card);
@@ -356,6 +357,12 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.25rem;
+  min-width: 0;
+}
+
+.chart-card canvas,
+.chart-wrapper canvas {
+  max-width: 100%;
 }
 
 .chart-card h3 {

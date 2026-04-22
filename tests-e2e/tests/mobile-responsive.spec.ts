@@ -4,27 +4,9 @@ import { join } from 'node:path';
 
 test.use({ viewport: { width: 375, height: 667 } });
 
-test.fail(
+test(
   'Mobile responsive at 375x667 — no horizontal overflow, charts stacked, nav accessible',
   async ({ page }, testInfo) => {
-    // =========================================================================
-    // KNOWN BUG documented S8.5, pending fix in S8.6 (CSS mobile hardening).
-    // =========================================================================
-    // Root cause: `.charts-grid` uses `grid-template-columns:
-    //   repeat(auto-fit, minmax(420px, 1fr))` without a sub-450px media query.
-    // At viewport 375px the `minmax(420px, ...)` clause forces columns
-    // ≥420px, so `.chart-card` elements overflow the viewport:
-    //
-    //   page     clientWidth   scrollWidth   overflow
-    //   /            375           516        +141px
-    //   /enigh       375           464         +89px
-    //
-    // This test is marked `test.fail()` to keep CI green while documenting
-    // the bug inside the test suite. When S8.6 lands the CSS fix, this test
-    // will PASS and Playwright will report "unexpected pass" — a loud signal
-    // that the `test.fail()` annotation must be removed (revert to `test()`).
-    // =========================================================================
-
     const screenshotsDir = join(testInfo.project.testDir!, '..', 'screenshots');
     mkdirSync(screenshotsDir, { recursive: true });
 
