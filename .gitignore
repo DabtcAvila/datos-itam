@@ -10,3 +10,10 @@ __pycache__/
 node_modules/
 .wrangler/
 data-sources/
+
+# tests-e2e (Playwright)
+tests-e2e/playwright-report/
+tests-e2e/test-results/
+tests-e2e/screenshots/*.png
+tests-e2e/screenshots/*.jpg
+tests-e2e/screenshots/*.jpeg
