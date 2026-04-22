@@ -1,5 +1,6 @@
 import { renderDashboard } from './pages/dashboard';
 import { renderEnighDashboard } from './pages/enigh';
+import { renderComparativoDashboard } from './pages/comparativo';
 import { renderTerms } from './pages/terms';
 import { stats } from './data/stats';
 
@@ -27,6 +28,8 @@ export default {
     let html: string;
     if (path === '/enigh') {
       html = renderEnighDashboard();
+    } else if (path === '/comparativo') {
+      html = renderComparativoDashboard();
     } else if (path === '/terms') {
       html = renderTerms();
     } else if (path === '/cdmx') {
