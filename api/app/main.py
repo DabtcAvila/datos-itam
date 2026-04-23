@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 from app.database import engine
 from app.rate_limit import limiter
-from app.routers import admin, analytics, auth, catalogos, comparativo, dashboard, enigh, export, ingest, nombramientos, personas, sectores, servidores
+from app.routers import admin, analytics, auth, catalogos, comparativo, consar, dashboard, enigh, export, ingest, nombramientos, personas, sectores, servidores
 
 
 @asynccontextmanager
@@ -27,6 +27,9 @@ API pública del Observatorio de Datos Públicos Mexicanos.
 - **ENIGH 2024 Nueva Serie** (schema `enigh`): Encuesta Nacional de Ingresos
   y Gastos de los Hogares 2024, 91K hogares muestra, expandible a 38.8M
   hogares nacional.
+- **CONSAR AFORE recursos** (schema `consar`): serie mensual de recursos
+  registrados en el SAR por AFORE, 326 meses (1998-05 a 2025-06), 11 AFOREs,
+  15 tipos de recurso (35,617 filas).
 - **Comparativos cross-dataset** (`/comparativo/*`): análisis CDMX↔ENIGH
   cuantificados.
 
@@ -121,6 +124,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             _set_public_cache(response, "public, max-age=3600")
         elif path.startswith("/api/v1/comparativo"):
             _set_public_cache(response, "public, max-age=3600")
+        elif path.startswith("/api/v1/consar"):
+            _set_public_cache(response, "public, max-age=3600")
         elif "/servidores/" in path:
             _set_public_cache(response, "public, max-age=300")
         return response
@@ -142,6 +147,7 @@ app.include_router(nombramientos.router)
 app.include_router(ingest.router)
 app.include_router(enigh.router)
 app.include_router(comparativo.router)
+app.include_router(consar.router)
 
 
 @app.get("/health")
