@@ -1,5 +1,5 @@
 import { test, expect, type Response } from '@playwright/test';
-import { CONSAR_ENDPOINTS } from '../helpers/endpoints';
+import { CONSAR_FRONTEND_FETCHES } from '../helpers/endpoints';
 
 const EXPECTED_SECTION_TITLE_PATTERNS: readonly RegExp[] = [
   /^1\s*·\s*El sistema en perspectiva/,
@@ -12,7 +12,7 @@ const EXPECTED_SECTION_TITLE_PATTERNS: readonly RegExp[] = [
 ];
 
 test.describe('CONSAR landing page', () => {
-  test('loads 7 dashboards, 8 API fetches 200, active tab, charts initialize', async ({ page }) => {
+  test('loads 7 dashboards, 7 unique CONSAR endpoints 200, active tab, charts initialize', async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -22,7 +22,7 @@ test.describe('CONSAR landing page', () => {
     const apiResponses = new Map<string, Response>();
     page.on('response', (res) => {
       const url = res.url();
-      for (const endpoint of CONSAR_ENDPOINTS) {
+      for (const endpoint of CONSAR_FRONTEND_FETCHES) {
         if (url.includes(endpoint)) {
           apiResponses.set(endpoint, res);
           break;
@@ -47,8 +47,8 @@ test.describe('CONSAR landing page', () => {
       expect(txt.trim(), `section ${i + 1} title mismatch`).toMatch(EXPECTED_SECTION_TITLE_PATTERNS[i]);
     }
 
-    // 8 fetches captured with 200
-    for (const endpoint of CONSAR_ENDPOINTS) {
+    // 7 unique endpoints fetched by the frontend, each 200
+    for (const endpoint of CONSAR_FRONTEND_FETCHES) {
       const res = apiResponses.get(endpoint);
       expect(res, `no response captured for ${endpoint}`).toBeDefined();
       expect(res!.status(), `status for ${endpoint}`).toBe(200);
