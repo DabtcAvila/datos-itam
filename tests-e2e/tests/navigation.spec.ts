@@ -1,19 +1,22 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Navigation across the three dataset tabs', () => {
-  test('tab cycle CDMX → ENIGH → Comparativo → CDMX updates URL, active state, and content', async ({ page }) => {
+test.describe('Navigation across the four dataset tabs', () => {
+  test('tab cycle CDMX → ENIGH → Comparativo → CONSAR → CDMX updates URL, active state, and content', async ({ page }) => {
     await page.goto('/');
 
     const cdmxTab = page.locator('a.dataset-tab[href="/"]');
     const enighTab = page.locator('a.dataset-tab[href="/enigh"]');
     const compTab = page.locator('a.dataset-tab[href="/comparativo"]');
+    const consarTab = page.locator('a.dataset-tab[href="/consar"]');
 
     await expect(cdmxTab).toBeVisible();
     await expect(enighTab).toBeVisible();
     await expect(compTab).toBeVisible();
+    await expect(consarTab).toBeVisible();
     await expect(cdmxTab).toHaveAttribute('aria-current', 'page');
     await expect(enighTab).toHaveAttribute('aria-current', 'false');
     await expect(compTab).toHaveAttribute('aria-current', 'false');
+    await expect(consarTab).toHaveAttribute('aria-current', 'false');
     await expect(cdmxTab).toHaveClass(/\bactive\b/);
 
     // CDMX → ENIGH
@@ -32,7 +35,15 @@ test.describe('Navigation across the three dataset tabs', () => {
     await expect(page.locator('#d1-kpi-cdmx-mean')).toBeVisible();
     await expect(page.locator('#d3-kpi-bruto')).toBeVisible();
 
-    // Comparativo → CDMX
+    // Comparativo → CONSAR
+    await page.locator('a.dataset-tab[href="/consar"]').click();
+    await expect(page).toHaveURL(/\/consar\/?$/);
+    await expect(page.locator('a.dataset-tab[href="/consar"]')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('a.dataset-tab[href="/consar"]')).toHaveClass(/\bactive\b/);
+    await expect(page.locator('#d1-kpi-sar-total')).toBeVisible();
+    await expect(page.locator('#d3-kpi-top4')).toBeVisible();
+
+    // CONSAR → CDMX
     await page.locator('a.dataset-tab[href="/"]').click();
     await expect(page).toHaveURL(/datos-itam\.org\/?$/);
     await expect(page.locator('a.dataset-tab[href="/"]')).toHaveAttribute('aria-current', 'page');

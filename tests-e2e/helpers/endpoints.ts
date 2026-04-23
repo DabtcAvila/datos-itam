@@ -24,7 +24,19 @@ export const COMPARATIVO_ENDPOINTS: readonly string[] = [
   '/api/v1/comparativo/top-vs-bottom',
 ] as const;
 
+export const CONSAR_ENDPOINTS: readonly string[] = [
+  '/api/v1/consar/afores',
+  '/api/v1/consar/tipos-recurso',
+  '/api/v1/consar/recursos/totales',
+  '/api/v1/consar/recursos/por-afore',
+  '/api/v1/consar/recursos/por-componente',
+  '/api/v1/consar/recursos/imss-vs-issste',
+  '/api/v1/consar/recursos/composicion',
+  '/api/v1/consar/recursos/serie',
+] as const;
+
 export const ALL_PUBLIC_ENDPOINTS: readonly string[] = [
   ...ENIGH_ENDPOINTS,
   ...COMPARATIVO_ENDPOINTS,
+  ...CONSAR_ENDPOINTS,
 ];

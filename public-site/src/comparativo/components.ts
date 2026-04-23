@@ -312,10 +312,16 @@ export function buildD3_Pensional(): string {
         <div class="comparativo-roadmap-title">Roadmap · lo que faltaría para análisis pensional</div>
         <p>
           Esta es <strong>fotografía actual del sistema</strong>, no proyección actuarial. Para análisis pensional
-          completo se requiere <strong>CONSAR</strong> (saldos AFORE individuales), <strong>IMSS</strong> (densidad
+          completo se requiere <strong>CONSAR</strong> (saldos AFORE), <strong>IMSS</strong> (densidad
           real de cotización), <strong>Pensión del Bienestar</strong> (cobertura no contributiva), y modelos
-          actuariales que crucen generaciones de reglas (IMSS-1973, IMSS-1997, ISSSTE-2007, SAR). Estos datasets
-          están en la <strong>hoja de ruta académica</strong> del observatorio.
+          actuariales que crucen generaciones de reglas (IMSS-1973, IMSS-1997, ISSSTE-2007, SAR).
+        </p>
+        <p style="margin-top: 0.7rem;">
+          <strong>✓ Primer avance (S11, 22 abril 2026)</strong>: los datos CONSAR de recursos registrados en el
+          SAR ya están disponibles públicamente en <a href="/consar"><strong>/consar</strong></a> —
+          serie mensual 1998-2025 por AFORE, identidad contable verificada al peso (98.83% histórico,
+          100% en 2020+). Los componentes Pensión Bienestar, IMSS individual y el modelo actuarial cruzado
+          siguen en la hoja de ruta académica.
         </p>
       </div>
 
