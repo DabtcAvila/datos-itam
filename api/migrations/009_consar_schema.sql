@@ -183,6 +183,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'recursos_trabajadores',
         'monto_recursos de los trabajadores',
         'Recursos de los Trabajadores',
+        'Recursos de los Trabajadores',
         'Recursos que pertenecen a los trabajadores (excluye capital propio de la AFORE).',
         'total', FALSE, 3
     ),
@@ -190,6 +191,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'vivienda',
         'monto_vivienda',
         'Vivienda',
+        'Subcuenta de Vivienda',
         'Subcuenta de vivienda. Agregado: vivienda = infonavit + fovissste (identidad verificada al peso).',
         'aggregate', FALSE, 4
     ),
@@ -197,6 +199,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'infonavit',
         'monto_infonavit',
         'INFONAVIT',
+        'Subcuenta de Vivienda INFONAVIT',
         'Subcuenta de vivienda INFONAVIT (trabajadores del sector privado afiliados al IMSS).',
         'component', FALSE, 5
     ),
@@ -204,6 +207,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'fovissste',
         'monto_fovissste',
         'FOVISSSTE',
+        'Subcuenta de Vivienda FOVISSSTE',
         'Subcuenta de vivienda FOVISSSTE (trabajadores del sector público afiliados al ISSSTE). Reportado a partir de ~2005.',
         'component', FALSE, 6
     ),
@@ -211,6 +215,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'rcv_imss',
         'monto_rcv - imss',
         'RCV-IMSS',
+        'Retiro, Cesantía en edad avanzada y Vejez — IMSS',
         'Retiro, Cesantía en edad avanzada y Vejez (RCV) — cuentas IMSS (trabajadores del sector privado).',
         'component', FALSE, 7
     ),
@@ -218,6 +223,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'rcv_issste',
         'monto_rcv - issste',
         'RCV-ISSSTE',
+        'Retiro, Cesantía en edad avanzada y Vejez — ISSSTE',
         'Retiro, Cesantía en edad avanzada y Vejez (RCV) — cuentas ISSSTE (trabajadores del sector público). Reportado a partir de ~2008.',
         'component', FALSE, 8
     ),
@@ -225,6 +231,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'bono_pension_issste',
         'monto_bono de pension issste',
         'Bono Pensión ISSSTE',
+        'Bono de Pensión ISSSTE',
         'Bono de Pensión ISSSTE: reconocimiento por aportaciones realizadas bajo el régimen previo a la reforma ISSSTE 2007. Reportado desde 2008-12.',
         'component', FALSE, 9
     ),
@@ -232,12 +239,14 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'ahorro_voluntario_y_solidario',
         'monto_ahorro voluntario y solidario',
         'Ahorro Voluntario + Solidario',
+        'Ahorro Voluntario y Solidario',
         'Agregado: ahorro_voluntario_y_solidario = ahorro_voluntario + ahorro_solidario (identidad verificada al peso).',
         'aggregate', FALSE, 10
     ),
     (
         'ahorro_voluntario',
         'monto_ahorro voluntario',
+        'Ahorro Voluntario',
         'Ahorro Voluntario',
         'Aportaciones voluntarias del trabajador (sin aportación patronal match).',
         'component', FALSE, 11
@@ -246,12 +255,14 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'ahorro_solidario',
         'monto_ahorro solidario',
         'Ahorro Solidario',
+        'Ahorro Solidario',
         'Aportación solidaria ISSSTE (trabajador aporta 1-2% del salario, gobierno federal aporta 3.25% por cada 1% del trabajador).',
         'component', FALSE, 12
     ),
     (
         'fondos_prevision_social',
         'monto_fondos de prevision social',
+        'Fondos de Previsión Social',
         'Fondos de Previsión Social',
         'Fondos de previsión social administrados por la AFORE. EXCLUSIVO de XXI-Banorte, reportado desde 2009-02.',
         'component', FALSE, 13
@@ -260,6 +271,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'banxico',
         'monto_recursos depositados en banco de méxico',
         'Depósitos en Banxico',
+        'Recursos Depositados en Banco de México',
         'Recursos de trabajadores que aún no han elegido AFORE (cuentas asignadas), depositados en el Banco de México. Reportado desde 2012-01 a nivel sistema.',
         'component', FALSE, 14
     ),
@@ -267,6 +279,7 @@ INSERT INTO consar.tipos_recurso (codigo, columna_csv, nombre_corto, nombre_ofic
         'capital_afores',
         'monto_capital de las afores',
         'Capital AFORES',
+        'Capital de las AFORE',
         'Capital propio de la administradora (no pertenece a los trabajadores). Requerido por CONSAR como reserva mínima.',
         'operativo', FALSE, 15
     );
