@@ -135,3 +135,41 @@ class ComposicionResponse(BaseModel):
     componentes: list[ComposicionItem]
     caveats: list[str]
     identidad_caveat: str
+
+
+# ---------------------------------------------------------------------
+# Serie genérica por tipo_recurso (+ filtro opcional por AFORE)
+# ---------------------------------------------------------------------
+
+
+class SerieTipoRecursoRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    nombre_oficial: str
+    categoria: str
+
+
+class SerieAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class SeriePunto(BaseModel):
+    fecha: date
+    monto_mxn_mm: float
+
+
+class SerieRango(BaseModel):
+    desde: date
+    hasta: date
+
+
+class SerieResponse(BaseModel):
+    tipo_recurso: SerieTipoRecursoRef
+    afore: Optional[SerieAforeRef]  # None → suma nacional sobre todas las AFOREs
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[SeriePunto]
+    caveats: list[str]

@@ -29,6 +29,11 @@ from app.schemas.consar import (
     ImssVsIsssteeResponse,
     PorAforeResponse,
     PorComponenteResponse,
+    SerieAforeRef,
+    SeriePunto,
+    SerieRango,
+    SerieResponse,
+    SerieTipoRecursoRef,
     TiposRecursoResponse,
     TipoRecursoRow,
     TotalesSarResponse,
@@ -508,4 +513,104 @@ async def get_composicion(
         componentes=items,
         caveats=[CAVEAT_UNIDAD, CAVEAT_FONDOS_PREV, CAVEAT_BANXICO, CAVEAT_BONO_ISSSTE],
         identidad_caveat=CAVEAT_IDENTIDAD_SAR,
+    )
+
+
+# ---------------------------------------------------------------------
+# 8. GET /consar/recursos/serie — serie temporal por tipo ± AFORE
+# ---------------------------------------------------------------------
+
+SQL_TIPO_META = """
+SELECT codigo, nombre_corto, nombre_oficial, categoria
+FROM consar.tipos_recurso
+WHERE codigo = :codigo
+"""
+
+SQL_AFORE_META = """
+SELECT codigo, nombre_corto, tipo_pension
+FROM consar.afores
+WHERE codigo = :codigo
+"""
+
+SQL_SERIE = """
+SELECT rm.fecha,
+       SUM(rm.monto_mxn_mm)::float AS monto_mxn_mm
+FROM consar.recursos_mensuales rm
+JOIN consar.tipos_recurso tr ON tr.id = rm.tipo_recurso_id
+JOIN consar.afores a         ON a.id = rm.afore_id
+WHERE tr.codigo = :codigo
+  AND (CAST(:afore_codigo AS text) IS NULL OR a.codigo = :afore_codigo)
+  AND rm.fecha >= :desde
+  AND rm.fecha <= :hasta
+GROUP BY rm.fecha
+ORDER BY rm.fecha
+"""
+
+
+@router.get(
+    "/recursos/serie",
+    response_model=SerieResponse,
+    summary="Serie temporal por tipo de recurso (opcionalmente filtrada por AFORE)",
+    description=(
+        "Retorna la serie mensual agregada del tipo de recurso indicado. Si "
+        "`afore_codigo` se omite, suma todas las AFOREs (nacional). "
+        "Parámetros `desde`/`hasta` aceptan YYYY-MM o YYYY-MM-01; "
+        "default a la cobertura completa 1998-05 / 2025-06."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_serie(
+    request: Request,
+    codigo: str = Query(..., description="Código del tipo_recurso (p. ej. 'vivienda', 'rcv_imss', 'sar_total')"),
+    afore_codigo: Optional[str] = Query(None, description="Código AFORE opcional (p. ej. 'pension_bienestar'); si se omite, suma nacional"),
+    desde: Optional[str] = Query(None, description="YYYY-MM o YYYY-MM-01 (default 1998-05)"),
+    hasta: Optional[str] = Query(None, description="YYYY-MM o YYYY-MM-01 (default 2025-06)"),
+) -> SerieResponse:
+    d_desde = _parse_fecha(desde) if desde else date(1998, 5, 1)
+    d_hasta = _parse_fecha(hasta) if hasta else date(2025, 6, 1)
+    if d_desde > d_hasta:
+        raise HTTPException(status_code=422, detail="'desde' debe ser <= 'hasta'")
+
+    async with engine.connect() as conn:
+        tipo_row = (await conn.execute(text(SQL_TIPO_META), {"codigo": codigo})).mappings().one_or_none()
+        if tipo_row is None:
+            raise HTTPException(status_code=404, detail=f"tipo_recurso '{codigo}' no existe")
+
+        afore_row = None
+        if afore_codigo is not None:
+            afore_row = (await conn.execute(text(SQL_AFORE_META), {"codigo": afore_codigo})).mappings().one_or_none()
+            if afore_row is None:
+                raise HTTPException(status_code=404, detail=f"afore '{afore_codigo}' no existe")
+
+        serie_rows = (await conn.execute(
+            text(SQL_SERIE),
+            {
+                "codigo": codigo,
+                "afore_codigo": afore_codigo,
+                "desde": d_desde,
+                "hasta": d_hasta,
+            },
+        )).mappings().all()
+
+    # Caveats dinámicos: unidad siempre + los específicos del tipo/afore
+    caveats = [CAVEAT_UNIDAD]
+    if afore_codigo == "pension_bienestar":
+        caveats.append(CAVEAT_PENSION_BIENESTAR)
+    if codigo == "fondos_prevision_social":
+        caveats.append(CAVEAT_FONDOS_PREV)
+    if codigo == "banxico":
+        caveats.append(CAVEAT_BANXICO)
+    if codigo == "bono_pension_issste":
+        caveats.append(CAVEAT_BONO_ISSSTE)
+    if codigo == "rcv_issste":
+        caveats.append("RCV-ISSSTE reportado de forma consistente desde 2008-12 con la reforma ISSSTE.")
+
+    return SerieResponse(
+        tipo_recurso=SerieTipoRecursoRef(**dict(tipo_row)),
+        afore=SerieAforeRef(**dict(afore_row)) if afore_row else None,
+        unit="millones de pesos MXN corrientes",
+        n_puntos=len(serie_rows),
+        rango=SerieRango(desde=d_desde, hasta=d_hasta),
+        serie=[SeriePunto(fecha=r["fecha"], monto_mxn_mm=round(r["monto_mxn_mm"], 2)) for r in serie_rows],
+        caveats=caveats,
     )
