@@ -1,9 +1,10 @@
-export type DatasetTab = 'cdmx' | 'enigh' | 'comparativo';
+export type DatasetTab = 'cdmx' | 'enigh' | 'comparativo' | 'consar';
 
 export function buildNavTabs(active: DatasetTab | null): string {
   const activeCdmx = active === 'cdmx' ? ' active' : '';
   const activeEnigh = active === 'enigh' ? ' active' : '';
   const activeComp = active === 'comparativo' ? ' active' : '';
+  const activeConsar = active === 'consar' ? ' active' : '';
   return `
     <nav class="dataset-tabs" aria-label="Datasets">
       <a href="/" class="dataset-tab${activeCdmx}" aria-current="${active === 'cdmx' ? 'page' : 'false'}">
@@ -17,6 +18,10 @@ export function buildNavTabs(active: DatasetTab | null): string {
       <a href="/comparativo" class="dataset-tab${activeComp}" aria-current="${active === 'comparativo' ? 'page' : 'false'}">
         <span class="dataset-tab-title">Comparativo</span>
         <span class="dataset-tab-sub">CDMX ↔ ENIGH — 7 lecturas cruzadas</span>
+      </a>
+      <a href="/consar" class="dataset-tab${activeConsar}" aria-current="${active === 'consar' ? 'page' : 'false'}">
+        <span class="dataset-tab-title">CONSAR AFORE</span>
+        <span class="dataset-tab-sub">Recursos SAR 1998-2025 — 7 dashboards</span>
       </a>
     </nav>
   `;

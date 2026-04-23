@@ -1422,4 +1422,139 @@ tr.row-highlight-boundary td {
   background: rgba(59, 130, 246, 0.10);
   font-weight: 500;
 }
+
+/* ====================================================================
+   CONSAR — D2 Donut composición SAR (dashboard destacado)
+   ==================================================================== */
+
+/* Featured section — subtle border treatment to signal "this is the main dashboard" */
+.enigh-section--featured {
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.04) 0%, transparent 100%);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.04);
+}
+.enigh-section-featured-eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(59, 130, 246, 0.9);
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+}
+
+/* Donut wrapper — 2-column layout with chart on left, legend table on right */
+.consar-donut-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .consar-donut-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
+
+.consar-donut-chart-col {
+  position: relative;
+  min-width: 0;
+}
+.consar-donut-legend-col {
+  min-width: 0;
+}
+
+/* Headline centrado dentro del hole del donut */
+.consar-donut-centered-headline {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 2;
+  pointer-events: none;
+  width: min(60%, 260px);
+}
+.consar-donut-eyebrow {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+.consar-donut-headline {
+  font-size: clamp(1.4rem, 3.8vw, 2rem);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.05;
+  margin-bottom: 0.2rem;
+}
+.consar-donut-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.chart-wrapper--donut {
+  height: 400px;
+  position: relative;
+}
+@media (max-width: 600px) {
+  .chart-wrapper--donut { height: 320px; }
+}
+
+/* Legend table */
+.consar-donut-legend-title {
+  font-size: 1rem;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+.consar-donut-table td,
+.consar-donut-table th {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+}
+.consar-donut-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: #666;
+  vertical-align: middle;
+}
+.consar-donut-nombre {
+  color: var(--text);
+}
+.consar-donut-legend-row:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+/* D7 endpoints list */
+.consar-endpoints-list {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.consar-endpoints-list h3 {
+  font-size: 1rem;
+  color: var(--text);
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+}
+.consar-endpoints-list ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+.consar-endpoints-list code {
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+  font-size: 0.82rem;
+  padding: 0.1rem 0.35rem;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 3px;
+  color: rgba(59, 130, 246, 1);
+}
 `;
