@@ -1,6 +1,6 @@
-// Pensional S12 — fetches paralelos a CONSAR.
+// Pensional S12 — 3 fetches paralelos a CONSAR + Comparativo.
 // Promise.allSettled: fallos individuales no rompen la página.
-// Hidrata P2 recomputando la partición de liquidez en el cliente sobre respuestas live.
+// Hidrata P1 y P2 recomputando derivados en el cliente sobre respuestas live.
 
 export function buildPensionalLiveDataScript(): string {
   return `
@@ -9,6 +9,7 @@ export function buildPensionalLiveDataScript(): string {
     var API_BASE = 'https://api.datos-itam.org/api/v1';
     var TIMEOUT = 10000;
     var SNAPSHOT_FECHA = '2025-06';  // se actualiza dinámicamente si /totales trae uno más reciente
+    var TASA_REAL = 0.04;
 
     // Categorías — replica de seed.ts para cálculo client-side
     var CATEGORIAS = {
@@ -95,6 +96,21 @@ export function buildPensionalLiveDataScript(): string {
       };
     }
 
+    // ---------- Cobertura stock × rendimiento vs flujo ----------
+    function computeCoverage(sarMm, nHogares, promedioMensual, tasa) {
+      var pagoAnualMm = (nHogares * promedioMensual * 12) / 1000000;
+      var rendimientoMm = sarMm * tasa;
+      var pct = pagoAnualMm > 0 ? rendimientoMm / pagoAnualMm * 100 : 0;
+      return {
+        sarTotalMm: sarMm,
+        nHogaresJubilados: nHogares,
+        promedioMensual: promedioMensual,
+        pagoAnualMm: pagoAnualMm,
+        rendimientoMm: rendimientoMm,
+        coberturaPct: pct,
+      };
+    }
+
     // ---------- P2 hidrate ----------
     function renderP2(partition) {
       updateKPI('p2-kpi-sar', partition.sarTotalMm, '$', ' mm');
@@ -115,27 +131,66 @@ export function buildPensionalLiveDataScript(): string {
       });
     }
 
+    // ---------- P1 hidrate ----------
+    function renderP1(coverage) {
+      updateKPI('p1-kpi-sar', coverage.sarTotalMm, '$', ' mm');
+      updateKPI('p1-kpi-hogares', coverage.nHogaresJubilados, '', '');
+      updateKPI('p1-kpi-promedio', coverage.promedioMensual, '$', '');
+      updateKPI('p1-kpi-flujo', coverage.pagoAnualMm, '$', ' mm');
+      updateKPI('p1-kpi-rendimiento', coverage.rendimientoMm, '$', ' mm');
+
+      // Callout central — número grande (no data-target)
+      var bigEl = document.getElementById('p1-big-cobertura');
+      if (bigEl) bigEl.textContent = Math.round(coverage.coberturaPct) + '%';
+      var inlineEl = document.getElementById('p1-cobertura-inline');
+      if (inlineEl) inlineEl.textContent = fmtPct(coverage.coberturaPct, 1);
+
+      whenChartReady(function() {
+        var c = getChart('p1Chart');
+        if (!c) return;
+        c.data.datasets[0].data = [coverage.rendimientoMm, coverage.pagoAnualMm];
+        c.update('none');
+      });
+    }
+
     // ---------- Boot ----------
     function boot() {
       // 1. Obtener último punto de /totales — actualiza SNAPSHOT_FECHA dinámicamente
       fetchJson('/consar/recursos/totales').then(function(d) {
         if (!d || !d.serie || !d.serie.length) return null;
         var last = d.serie[d.serie.length - 1];
-        // last.fecha formato 'YYYY-MM-DD' → SNAPSHOT_FECHA 'YYYY-MM'
         SNAPSHOT_FECHA = last.fecha.slice(0, 7);
         return last;
       }).catch(function() { return null; }).then(function(last) {
-        // 2. /composicion para partición de liquidez P2
-        fetchJson('/consar/recursos/composicion?fecha=' + SNAPSHOT_FECHA + '-01')
-          .then(function(composicion) {
-            if (composicion && composicion.componentes) {
-              renderP2(computePartition(composicion.componentes));
+        // 2. Paralelo: /composicion (P2) + /comparativo/aportes-vs-jubilaciones-actuales (P1)
+        var requests = [
+          fetchJson('/consar/recursos/composicion?fecha=' + SNAPSHOT_FECHA + '-01'),
+          fetchJson('/comparativo/aportes-vs-jubilaciones-actuales'),
+        ];
+        Promise.allSettled(requests).then(function(results) {
+          var composicion = results[0].status === 'fulfilled' ? results[0].value : null;
+          var comparativo = results[1].status === 'fulfilled' ? results[1].value : null;
+
+          if (composicion && composicion.componentes) {
+            var partition = computePartition(composicion.componentes);
+            renderP2(partition);
+
+            // P1 requiere composición (para sar total) + comparativo (hogares + promedio)
+            if (comparativo && comparativo.enigh_jubilaciones_actuales) {
+              var enigh = comparativo.enigh_jubilaciones_actuales;
+              var coverage = computeCoverage(
+                partition.sarTotalMm,
+                enigh.n_hogares_con_jubilacion_expandido,
+                enigh.mean_jubilacion_solo_jubilados_mensual,
+                TASA_REAL
+              );
+              renderP1(coverage);
             }
-            markLive();
-          })
-          .catch(function() {
-            if (last != null) markLive();  // /totales OK → aún podemos marcar live
-          });
+          }
+
+          var anyOk = results.some(function(r) { return r.status === 'fulfilled'; }) || (last != null);
+          if (anyOk) markLive();
+        });
       });
     }
 

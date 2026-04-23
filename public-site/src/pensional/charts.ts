@@ -2,10 +2,16 @@
 // SSR paints with seed; live-data refreshes both via mutation post-fetch.
 
 import { PENSIONAL_SEED } from './seed';
-import { computeLiquidityPartition } from './computations';
+import { computeLiquidityPartition, computeCoverage } from './computations';
 
 export function buildPensionalChartsScript(): string {
   const partition = computeLiquidityPartition(PENSIONAL_SEED.consar.componentes);
+  const coverage = computeCoverage({
+    sarTotalMm: PENSIONAL_SEED.consar.sarTotalMm,
+    nHogaresJubilados: PENSIONAL_SEED.enigh.nHogaresJubilados,
+    promedioMensualJubilacion: PENSIONAL_SEED.enigh.promedioMensualJubilacion,
+    tasaRealAnual: PENSIONAL_SEED.tasaRealAnual,
+  });
 
   // P2 stacked bar — 3 datasets, una "fila" (SAR total)
   const p2LiquidoMm = JSON.stringify([partition.liquido.totalMm]);
@@ -14,6 +20,10 @@ export function buildPensionalChartsScript(): string {
   const p2LiquidoPct = partition.liquido.pct.toFixed(2);
   const p2VinculadoPct = partition.vinculado.pct.toFixed(2);
   const p2OperativoPct = partition.operativo.pct.toFixed(2);
+
+  // P1 dual bar — 2 barras verticales
+  const p1RendimientoMm = coverage.rendimientoAnualSarMm;
+  const p1FlujoMm = coverage.pagoAnualImplicitoMm;
 
   return `
   <script>
@@ -124,6 +134,52 @@ export function buildPensionalChartsScript(): string {
               y: {
                 stacked: true,
                 grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+
+      // ===== P1 — Dual bar vertical (rendimiento SAR vs pago anual) =====
+      var p1Canvas = document.getElementById('p1Chart');
+      if (p1Canvas) {
+        new Chart(p1Canvas, {
+          type: 'bar',
+          data: {
+            labels: ['Rendimiento SAR @ 4% real', 'Pago anual implícito jubilaciones'],
+            datasets: [{
+              label: 'MXN anuales',
+              data: [${p1RendimientoMm}, ${p1FlujoMm}],
+              backgroundColor: [
+                'rgba(59, 130, 246, 0.85)',
+                'rgba(234, 179, 8, 0.85)',
+              ],
+              borderColor: [
+                'rgba(59, 130, 246, 1)',
+                'rgba(234, 179, 8, 1)',
+              ],
+              borderWidth: 1,
+              borderRadius: 6,
+              maxBarThickness: 160,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) { return fmtMm(ctx.raw) + ' MXN / año'; }
+                }
+              }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                ticks: { callback: tickFormatter },
+                grid: { color: '#262626' }
               }
             }
           }

@@ -3,6 +3,7 @@ import { buildNavTabs } from '../shared/nav';
 import {
   buildPensionalHero,
   buildP2_ViviendaCongelada,
+  buildP1_Cobertura42,
   buildPensionalAbout,
 } from '../pensional/components';
 import { buildPensionalChartsScript } from '../pensional/charts';
@@ -20,9 +21,9 @@ export function renderPensionalDashboard(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>datos-itam | Pensional · CONSAR × ENIGH 2 hipótesis cuantificadas</title>
-  <meta name="description" content="Hipótesis cuantificada sobre el sistema pensional mexicano — P2 partición de liquidez del SAR: 75% líquido vs 25% vinculado/operativo (vivienda + Banxico + Capital AFOREs).">
+  <meta name="description" content="Dos hipótesis cuantificadas sobre el sistema pensional mexicano cruzando CONSAR (stock SAR $10 bill MXN) y ENIGH (7.17M hogares jubilados): P1 cobertura 42% stock-a-flujo, P2 75% líquido vs 25% vinculado/operativo.">
   <meta property="og:title" content="Pensional — Observatorio datos-itam">
-  <meta property="og:description" content="CONSAR × ENIGH. Stock acumulado y su convertibilidad a pensión. Con caveats metodológicos.">
+  <meta property="og:description" content="CONSAR × ENIGH. Stock acumulado vs flujo actual de pensiones. 2 hipótesis cuantificadas con caveats metodológicos.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://datos-itam.org/pensional">
   <meta name="twitter:card" content="summary">
@@ -39,7 +40,7 @@ export function renderPensionalDashboard(): string {
     <div class="header-meta">
       <span class="live-badge" id="pensionalLiveBadge">EN VIVO</span>
       <span class="header-badge">Validado: ${buildDate}</span>
-      <span class="header-badge">1 dashboard</span>
+      <span class="header-badge">2 dashboards</span>
     </div>
   </header>
 
@@ -49,8 +50,9 @@ export function renderPensionalDashboard(): string {
 
     ${buildPensionalHero()}
 
-    <!-- Orden pedagógico: P2 primero (estructural, descriptivo) → P1 (hipótesis narrativa fuerte) en commit siguiente -->
+    <!-- Orden pedagógico: P2 primero (estructural, descriptivo) → P1 después (hipótesis narrativa fuerte) -->
     ${buildP2_ViviendaCongelada()}
+    ${buildP1_Cobertura42()}
 
     ${buildPensionalAbout()}
 
