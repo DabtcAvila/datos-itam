@@ -139,16 +139,18 @@ def melt_csv(path: Path) -> List[Tuple[str, str, str, Decimal]]:
 # ---------------------------------------------------------------------
 
 
-def _strip_query_params(dsn: str) -> str:
-    """asyncpg no acepta sslmode/channel_binding como query params."""
+def _normalize_dsn(dsn: str) -> str:
+    """asyncpg no acepta el scheme 'postgresql+asyncpg://' (SQLAlchemy-style)
+    ni query params libpq (sslmode, channel_binding)."""
+    if dsn.startswith("postgresql+asyncpg://"):
+        dsn = "postgresql://" + dsn[len("postgresql+asyncpg://"):]
     if "?" in dsn:
-        base, _, _ = dsn.partition("?")
-        return base
+        dsn, _, _ = dsn.partition("?")
     return dsn
 
 
 async def connect(dsn: str) -> asyncpg.Connection:
-    clean = _strip_query_params(dsn)
+    clean = _normalize_dsn(dsn)
     is_neon = "neon.tech" in clean
     kwargs: Dict = {"statement_cache_size": 0 if is_neon else 100}
     if is_neon:
