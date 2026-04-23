@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env.CI;
+// Override via PLAYWRIGHT_BASE_URL=http://localhost:8787 for local wrangler dev runs
+// (pre-deploy validation). Production default otherwise — used by CI and by default runs.
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'https://datos-itam.org';
 
 export default defineConfig({
   testDir: './tests',
@@ -14,9 +17,9 @@ export default defineConfig({
     ? [['list'], ['html', { open: 'never' }], ['github']]
     : [['list']],
   use: {
-    baseURL: 'https://datos-itam.org',
+    baseURL: BASE_URL,
     extraHTTPHeaders: {
-      Origin: 'https://datos-itam.org',
+      Origin: BASE_URL,
     },
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
