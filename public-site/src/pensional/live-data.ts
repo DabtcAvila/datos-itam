@@ -126,7 +126,7 @@ export function buildPensionalLiveDataScript(): string {
         c.data.datasets[1].data = [partition.vinculado.totalMm];
         c.data.datasets[1].label = 'Vivienda vinculada (' + fmtPct(partition.vinculado.pct, 2) + ')';
         c.data.datasets[2].data = [partition.operativo.totalMm];
-        c.data.datasets[2].label = 'Operativo no pensional (' + fmtPct(partition.operativo.pct, 2) + ')';
+        c.data.datasets[2].label = 'Operativo administrativo (' + fmtPct(partition.operativo.pct, 2) + ')';
         c.update('none');
       });
     }

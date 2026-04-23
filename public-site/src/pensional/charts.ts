@@ -103,7 +103,7 @@ export function buildPensionalChartsScript(): string {
                 borderRadius: 4,
               },
               {
-                label: 'Operativo no pensional (${p2OperativoPct}%)',
+                label: 'Operativo administrativo (${p2OperativoPct}%)',
                 data: ${p2OperativoMm},
                 backgroundColor: 'rgba(107, 114, 128, 0.85)',
                 borderColor: 'rgba(107, 114, 128, 1)',

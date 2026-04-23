@@ -8,8 +8,8 @@ const PENSIONAL_FRONTEND_FETCHES: readonly string[] = [
 ] as const;
 
 const EXPECTED_SECTION_TITLE_PATTERNS: readonly RegExp[] = [
-  /^P2\s*·\s*Vivienda como activo congelado/,
-  /^P1\s*·\s*Stock pensional vs flujo necesario/,
+  /^P2\s*·\s*Composición del SAR por liquidez/,
+  /^P1\s*·\s*Ejercicio aritmético/,
 ];
 
 test.describe('Pensional landing page', () => {
