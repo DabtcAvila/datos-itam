@@ -5,7 +5,7 @@
 import { type ComponenteSar, type LiquidezCategoria } from './seed';
 
 // ---------------------------------------------------------------------
-// P2 — Partición de liquidez del SAR
+// Partición de liquidez del SAR
 // ---------------------------------------------------------------------
 // 8 componentes CONSAR → 3 buckets (líquido / vinculado / operativo).
 // El resultado es la partición del stock total en categorías con

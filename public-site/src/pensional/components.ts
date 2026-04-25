@@ -1,5 +1,5 @@
 // Pensional — componentes narrativos.
-// Hero + P2 (Composición del SAR por liquidez) + About.
+// Hero + Composición del SAR + About.
 
 import { PENSIONAL_SEED } from './seed';
 import {
@@ -13,7 +13,7 @@ import {
 const PARTITION = computeLiquidityPartition(PENSIONAL_SEED.consar.componentes);
 
 // ---------------------------------------------------------------------
-// Caveat meta (reutilizado al final de P2)
+// Caveat meta (reutilizado al final del dashboard)
 // ---------------------------------------------------------------------
 
 function buildCaveatMeta(opts: {
@@ -69,16 +69,16 @@ export function buildPensionalHero(): string {
 }
 
 // ---------------------------------------------------------------------
-// P2 — Vivienda como activo congelado vs pensión líquida
+// Composición del SAR por liquidez del componente
 // ---------------------------------------------------------------------
 
-export function buildP2_ViviendaCongelada(): string {
+export function buildComposicionSAR(): string {
   const p = PARTITION;
   const vivienda = p.vinculado.componentes[0]; // solo hay uno: vivienda
 
   return `
-    <section class="enigh-section" id="p2-liquidez">
-      <h2 class="section-title">P2 · Composición del SAR por liquidez del componente</h2>
+    <section class="enigh-section" id="composicion-liquidez">
+      <h2 class="section-title">Composición del SAR por liquidez del componente</h2>
       <p class="section-intro">
         El SAR mexicano (<strong>${formatBill(p.sarTotalMm)} MXN</strong> junio 2025) incluye ocho
         componentes con distintos regímenes de liquidez según la legislación aplicable. Este dashboard
@@ -92,22 +92,22 @@ export function buildP2_ViviendaCongelada(): string {
       <div class="kpis">
         <div class="kpi kpi--blue">
           <div class="kpi-label">SAR Nacional reportado</div>
-          <div class="kpi-value" id="p2-kpi-sar" data-target="${p.sarTotalMm}" data-prefix="$" data-suffix=" mm">$0</div>
+          <div class="kpi-value" id="composicion-kpi-sar" data-target="${p.sarTotalMm}" data-prefix="$" data-suffix=" mm">$0</div>
           <div class="kpi-sub">Junio 2025 · 8 componentes contables</div>
         </div>
         <div class="kpi kpi--green">
           <div class="kpi-label">Líquido para pensión</div>
-          <div class="kpi-value" id="p2-kpi-liquido-pct" data-target="${p.liquido.pct}" data-suffix="%" data-decimals="2">0%</div>
+          <div class="kpi-value" id="composicion-kpi-liquido-pct" data-target="${p.liquido.pct}" data-suffix="%" data-decimals="2">0%</div>
           <div class="kpi-sub">${formatBill(p.liquido.totalMm)} MXN · RCV + voluntario + ISSSTE</div>
         </div>
         <div class="kpi kpi--yellow">
           <div class="kpi-label">Vinculado a vivienda</div>
-          <div class="kpi-value" id="p2-kpi-vivienda-pct" data-target="${p.vinculado.pct}" data-suffix="%" data-decimals="2">0%</div>
+          <div class="kpi-value" id="composicion-kpi-vivienda-pct" data-target="${p.vinculado.pct}" data-suffix="%" data-decimals="2">0%</div>
           <div class="kpi-sub">${formatMm(p.vinculado.totalMm)} · INFONAVIT + FOVISSSTE</div>
         </div>
         <div class="kpi kpi--purple">
           <div class="kpi-label">Operativo (administrativo)</div>
-          <div class="kpi-value" id="p2-kpi-operativo-pct" data-target="${p.operativo.pct}" data-suffix="%" data-decimals="2">0%</div>
+          <div class="kpi-value" id="composicion-kpi-operativo-pct" data-target="${p.operativo.pct}" data-suffix="%" data-decimals="2">0%</div>
           <div class="kpi-sub">${formatMm(p.operativo.totalMm)} · Banxico asignadas + capital AFOREs</div>
         </div>
       </div>
@@ -115,7 +115,7 @@ export function buildP2_ViviendaCongelada(): string {
       <div class="chart-card full-width">
         <h3>Composición del SAR junio 2025 por categoría de liquidez</h3>
         <div class="chart-wrapper">
-          <canvas id="p2Chart" role="img" aria-label="Gráfico de barra apilada horizontal mostrando la composición del SAR en tres categorías: líquido 74.66%, vivienda 23.66%, operativo 1.68%"></canvas>
+          <canvas id="composicionChart" role="img" aria-label="Gráfico de barra apilada horizontal mostrando la composición del SAR en tres categorías: líquido 74.66%, vivienda 23.66%, operativo 1.68%"></canvas>
         </div>
         <p class="chart-note">
           La barra representa el SAR total ${formatBill(p.sarTotalMm)} MXN. El bloque verde agrupa los
@@ -219,7 +219,7 @@ export function buildPensionalAbout(): string {
         identidad contable verificada).
       </p>
       <p>
-        <strong>Alcance:</strong> el dashboard P2 es un ejercicio descriptivo con datos públicos
+        <strong>Alcance:</strong> este dashboard es un ejercicio descriptivo con datos públicos
         CONSAR. Su interpretación en términos del sistema pensional mexicano requiere análisis
         actuarial y demográfico fuera del alcance del observatorio. Cada caveat describe las
         condiciones del cómputo, no una conclusión.

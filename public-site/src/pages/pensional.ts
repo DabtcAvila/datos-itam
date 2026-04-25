@@ -2,7 +2,7 @@ import { CSS } from '../styles';
 import { buildNavTabs } from '../shared/nav';
 import {
   buildPensionalHero,
-  buildP2_ViviendaCongelada,
+  buildComposicionSAR,
   buildPensionalAbout,
 } from '../pensional/components';
 import { buildPensionalChartsScript } from '../pensional/charts';
@@ -39,7 +39,7 @@ export function renderPensionalDashboard(): string {
     <div class="header-meta">
       <span class="live-badge" id="pensionalLiveBadge">EN VIVO</span>
       <span class="header-badge">Validado: ${buildDate}</span>
-      <span class="header-badge">1 dashboard</span>
+      <span class="header-badge">Composición SAR</span>
     </div>
   </header>
 
@@ -49,7 +49,7 @@ export function renderPensionalDashboard(): string {
 
     ${buildPensionalHero()}
 
-    ${buildP2_ViviendaCongelada()}
+    ${buildComposicionSAR()}
 
     ${buildPensionalAbout()}
 

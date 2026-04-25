@@ -1,6 +1,6 @@
 // Pensional — fetches CONSAR para hidratar la composición del SAR.
 // Llama a /totales (para detectar el snapshot más reciente) y /composicion.
-// Hidrata P2 recomputando la partición sobre la respuesta live.
+// Hidrata el dashboard recomputando la partición sobre la respuesta live.
 
 export function buildPensionalLiveDataScript(): string {
   return `
@@ -87,15 +87,15 @@ export function buildPensionalLiveDataScript(): string {
       };
     }
 
-    // ---------- P2 hidrate ----------
-    function renderP2(partition) {
-      updateKPI('p2-kpi-sar', partition.sarTotalMm, '$', ' mm');
-      updateKPI('p2-kpi-liquido-pct', partition.liquido.pct, '', '%', 2);
-      updateKPI('p2-kpi-vivienda-pct', partition.vinculado.pct, '', '%', 2);
-      updateKPI('p2-kpi-operativo-pct', partition.operativo.pct, '', '%', 2);
+    // ---------- Composición SAR hidrate ----------
+    function renderComposicion(partition) {
+      updateKPI('composicion-kpi-sar', partition.sarTotalMm, '$', ' mm');
+      updateKPI('composicion-kpi-liquido-pct', partition.liquido.pct, '', '%', 2);
+      updateKPI('composicion-kpi-vivienda-pct', partition.vinculado.pct, '', '%', 2);
+      updateKPI('composicion-kpi-operativo-pct', partition.operativo.pct, '', '%', 2);
 
       whenChartReady(function() {
-        var c = getChart('p2Chart');
+        var c = getChart('composicionChart');
         if (!c) return;
         c.data.datasets[0].data = [partition.liquido.totalMm];
         c.data.datasets[0].label = 'Líquido para pensión (' + fmtPct(partition.liquido.pct, 2) + ')';
@@ -121,7 +121,7 @@ export function buildPensionalLiveDataScript(): string {
           .then(function(composicion) {
             if (composicion && composicion.componentes) {
               var partition = computePartition(composicion.componentes);
-              renderP2(partition);
+              renderComposicion(partition);
               markLive();
             } else if (last != null) {
               markLive();

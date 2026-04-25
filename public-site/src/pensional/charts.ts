@@ -1,4 +1,4 @@
-// Pensional — Chart.js instance para P2 (stacked horizontal).
+// Pensional — Chart.js instance para el dashboard de composición SAR (stacked horizontal).
 // SSR paints with seed; live-data refreshes via mutation post-fetch.
 
 import { PENSIONAL_SEED } from './seed';
@@ -7,13 +7,13 @@ import { computeLiquidityPartition } from './computations';
 export function buildPensionalChartsScript(): string {
   const partition = computeLiquidityPartition(PENSIONAL_SEED.consar.componentes);
 
-  // P2 stacked bar — 3 datasets, una "fila" (SAR total)
-  const p2LiquidoMm = JSON.stringify([partition.liquido.totalMm]);
-  const p2VinculadoMm = JSON.stringify([partition.vinculado.totalMm]);
-  const p2OperativoMm = JSON.stringify([partition.operativo.totalMm]);
-  const p2LiquidoPct = partition.liquido.pct.toFixed(2);
-  const p2VinculadoPct = partition.vinculado.pct.toFixed(2);
-  const p2OperativoPct = partition.operativo.pct.toFixed(2);
+  // Stacked bar — 3 datasets, una "fila" (SAR total)
+  const composicionLiquidoMm = JSON.stringify([partition.liquido.totalMm]);
+  const composicionVinculadoMm = JSON.stringify([partition.vinculado.totalMm]);
+  const composicionOperativoMm = JSON.stringify([partition.operativo.totalMm]);
+  const composicionLiquidoPct = partition.liquido.pct.toFixed(2);
+  const composicionVinculadoPct = partition.vinculado.pct.toFixed(2);
+  const composicionOperativoPct = partition.operativo.pct.toFixed(2);
 
   return `
   <script>
@@ -68,33 +68,33 @@ export function buildPensionalChartsScript(): string {
       Chart.defaults.color = '#a1a1aa';
       Chart.defaults.borderColor = '#262626';
 
-      // ===== P2 — Stacked horizontal bar (líquido / vinculado / operativo) =====
-      var p2Canvas = document.getElementById('p2Chart');
-      if (p2Canvas) {
-        new Chart(p2Canvas, {
+      // ===== Stacked horizontal bar — composición SAR (líquido / vinculado / operativo) =====
+      var composicionCanvas = document.getElementById('composicionChart');
+      if (composicionCanvas) {
+        new Chart(composicionCanvas, {
           type: 'bar',
           data: {
             labels: ['SAR junio 2025'],
             datasets: [
               {
-                label: 'Líquido para pensión (${p2LiquidoPct}%)',
-                data: ${p2LiquidoMm},
+                label: 'Líquido para pensión (${composicionLiquidoPct}%)',
+                data: ${composicionLiquidoMm},
                 backgroundColor: 'rgba(34, 197, 94, 0.85)',
                 borderColor: 'rgba(34, 197, 94, 1)',
                 borderWidth: 1,
                 borderRadius: 4,
               },
               {
-                label: 'Vivienda vinculada (${p2VinculadoPct}%)',
-                data: ${p2VinculadoMm},
+                label: 'Vivienda vinculada (${composicionVinculadoPct}%)',
+                data: ${composicionVinculadoMm},
                 backgroundColor: 'rgba(234, 179, 8, 0.85)',
                 borderColor: 'rgba(234, 179, 8, 1)',
                 borderWidth: 1,
                 borderRadius: 4,
               },
               {
-                label: 'Operativo administrativo (${p2OperativoPct}%)',
-                data: ${p2OperativoMm},
+                label: 'Operativo administrativo (${composicionOperativoPct}%)',
+                data: ${composicionOperativoMm},
                 backgroundColor: 'rgba(107, 114, 128, 0.85)',
                 borderColor: 'rgba(107, 114, 128, 1)',
                 borderWidth: 1,

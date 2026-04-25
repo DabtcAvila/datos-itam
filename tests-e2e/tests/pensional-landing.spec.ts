@@ -7,7 +7,7 @@ const PENSIONAL_FRONTEND_FETCHES: readonly string[] = [
 ] as const;
 
 const EXPECTED_SECTION_TITLE_PATTERNS: readonly RegExp[] = [
-  /^P2\s*·\s*Composición del SAR por liquidez/,
+  /^Composición del SAR por liquidez/,
 ];
 
 test.describe('Pensional landing page', () => {
@@ -42,7 +42,7 @@ test.describe('Pensional landing page', () => {
     // Navigation has 5 tabs total
     await expect(page.locator('a.dataset-tab')).toHaveCount(5);
 
-    // Single section title — P2 only
+    // Single section title — composición SAR
     const sectionTitles = page.locator('section.enigh-section > h2.section-title');
     await expect(sectionTitles).toHaveCount(1);
     const txt = (await sectionTitles.nth(0).textContent()) ?? '';
@@ -55,31 +55,31 @@ test.describe('Pensional landing page', () => {
       expect(res!.status(), `status for ${endpoint}`).toBe(200);
     }
 
-    // P2 KPIs (4): sar, liquido, vivienda, operativo
-    await expect(page.locator('#p2-kpi-sar')).toBeVisible();
-    await expect(page.locator('#p2-kpi-liquido-pct')).toBeVisible();
-    await expect(page.locator('#p2-kpi-vivienda-pct')).toBeVisible();
-    await expect(page.locator('#p2-kpi-operativo-pct')).toBeVisible();
+    // Composición KPIs (4): sar, liquido, vivienda, operativo
+    await expect(page.locator('#composicion-kpi-sar')).toBeVisible();
+    await expect(page.locator('#composicion-kpi-liquido-pct')).toBeVisible();
+    await expect(page.locator('#composicion-kpi-vivienda-pct')).toBeVisible();
+    await expect(page.locator('#composicion-kpi-operativo-pct')).toBeVisible();
 
     // Section anchor visible
-    await expect(page.locator('#p2-liquidez')).toBeVisible();
+    await expect(page.locator('#composicion-liquidez')).toBeVisible();
 
     // 1 chart initialized with non-zero dimensions
-    const canvas = page.locator('#p2Chart');
-    await expect(canvas, 'canvas #p2Chart not found').toBeVisible();
+    const canvas = page.locator('#composicionChart');
+    await expect(canvas, 'canvas #composicionChart not found').toBeVisible();
     const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.width, h: el.height }));
     expect(dims.w, 'canvas width=0 (chart not initialized)').toBeGreaterThan(0);
     expect(dims.h, 'canvas height=0 (chart not initialized)').toBeGreaterThan(0);
 
-    // Narrative structure: P2 has 1 headline + 1 caveat block + 1 roadmap
+    // Narrative structure: 1 headline + 1 caveat block + 1 roadmap
     await expect(page.locator('.comparativo-headline')).toHaveCount(1);
     await expect(page.locator('.comparativo-roadmap')).toHaveCount(1);
 
-    // Caveats: 1 visible caveat block (P2)
+    // Caveats: 1 visible caveat block
     const caveatDivs = page.locator('div.comparativo-caveats-expanded');
     await expect(caveatDivs).toHaveCount(1);
-    const p2Caveats = caveatDivs.nth(0).locator('ol > li');
-    await expect(p2Caveats).toHaveCount(4);
+    const composicionCaveats = caveatDivs.nth(0).locator('ol > li');
+    await expect(composicionCaveats).toHaveCount(4);
 
     // Live badge activates after successful fetches
     const liveBadge = page.locator('#pensionalLiveBadge');
