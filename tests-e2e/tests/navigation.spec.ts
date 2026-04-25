@@ -52,7 +52,7 @@ test.describe('Navigation across the five dataset tabs', () => {
     await expect(page.locator('a.dataset-tab[href="/pensional"]')).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('a.dataset-tab[href="/pensional"]')).toHaveClass(/\bactive\b/);
     await expect(page.locator('#p2-kpi-sar')).toBeVisible();
-    await expect(page.locator('#p1-big-cobertura')).toBeVisible();
+    await expect(page.locator('#p2-kpi-liquido-pct')).toBeVisible();
 
     // Pensional → CDMX
     await page.locator('a.dataset-tab[href="/"]').click();
