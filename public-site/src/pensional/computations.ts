@@ -1,8 +1,8 @@
-// Pensional S12 — cálculos derivados puros, testeables unitariamente.
-// Los endpoints CONSAR + ENIGH entregan los datos base; aquí se derivan
-// las dos hipótesis cuantificadas del dashboard.
+// Pensional — cálculo derivado puro, testeable unitariamente.
+// El endpoint CONSAR entrega los 8 componentes SAR; aquí se agrupan
+// en 3 categorías de liquidez según la legislación aplicable.
 
-import { PENSIONAL_SEED, type ComponenteSar, type LiquidezCategoria } from './seed';
+import { type ComponenteSar, type LiquidezCategoria } from './seed';
 
 // ---------------------------------------------------------------------
 // P2 — Partición de liquidez del SAR
@@ -53,50 +53,6 @@ export function computeLiquidityPartition(
     operativo,
     noLiquidoTotalMm,
     noLiquidoPct: sarTotalMm > 0 ? (noLiquidoTotalMm / sarTotalMm) * 100 : 0,
-  };
-}
-
-// ---------------------------------------------------------------------
-// P1 — Cobertura stock×rendimiento vs flujo anual pagado
-// ---------------------------------------------------------------------
-// Pago anual implícito = n_hogares × promedio_mensual × 12
-// Rendimiento SAR      = SAR_total × tasa_real_anual
-// Cobertura            = Rendimiento / Pago_anual (adim)
-
-export interface CoverageCalculation {
-  sarTotalMm: number;
-  nHogaresJubilados: number;
-  promedioMensualJubilacion: number;
-  pagoAnualImplicitoMm: number;      // en millones MXN, para comparar en misma unidad
-  tasaRealAnual: number;
-  rendimientoAnualSarMm: number;
-  coberturaPct: number;
-}
-
-export function computeCoverage(opts: {
-  sarTotalMm: number;
-  nHogaresJubilados: number;
-  promedioMensualJubilacion: number;
-  tasaRealAnual?: number;
-}): CoverageCalculation {
-  const tasaRealAnual = opts.tasaRealAnual ?? PENSIONAL_SEED.tasaRealAnual;
-  // pago anual en pesos absolutos
-  const pagoAnualPesos = opts.nHogaresJubilados * opts.promedioMensualJubilacion * 12;
-  // convertimos a millones MXN (dividir entre 1e6)
-  const pagoAnualImplicitoMm = pagoAnualPesos / 1_000_000;
-  const rendimientoAnualSarMm = opts.sarTotalMm * tasaRealAnual;
-  const coberturaPct = pagoAnualImplicitoMm > 0
-    ? (rendimientoAnualSarMm / pagoAnualImplicitoMm) * 100
-    : 0;
-
-  return {
-    sarTotalMm: opts.sarTotalMm,
-    nHogaresJubilados: opts.nHogaresJubilados,
-    promedioMensualJubilacion: opts.promedioMensualJubilacion,
-    pagoAnualImplicitoMm,
-    tasaRealAnual,
-    rendimientoAnualSarMm,
-    coberturaPct,
   };
 }
 

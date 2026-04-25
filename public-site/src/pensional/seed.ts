@@ -1,12 +1,12 @@
-// Pensional S12 — seed validado contra API producción 2026-04-22.
-// Combina composición CONSAR (identidad de 8 componentes) + hogares jubilados ENIGH.
-// live-data.ts refresca estos valores vía fetch a /consar + /comparativo.
+// Pensional — seed validado contra API producción 2026-04-22.
+// Composición CONSAR (identidad de 8 componentes SAR junio 2025).
+// live-data.ts refresca estos valores vía fetch a /consar.
 //
-// Nota: Los componentes se categorizan por función contable, no por juicio de valor:
-//   - líquido: recursos convertibles a flujo pensional mensual (RCV-IMSS, RCV-ISSSTE,
-//     Bono ISSSTE, Ahorro Vol+Sol, Fondos Previsión Social)
-//   - vinculado: Vivienda (INFONAVIT + FOVISSSTE) — ahorro con destino habitacional
-//   - operativo: Banxico (cuentas asignadas sin AFORE) + Capital AFORES (patrimonio admin)
+// Nota: Los componentes se categorizan por régimen de liquidez según la legislación aplicable:
+//   - líquido: subcuentas RCV-IMSS, RCV-ISSSTE, Bono Pensión ISSSTE, Ahorro Voluntario+Solidario,
+//     Fondos de Previsión Social
+//   - vinculado: Vivienda (INFONAVIT + FOVISSSTE) — uso vinculado a crédito habitacional por ley
+//   - operativo: Banxico (cuentas asignadas sin AFORE elegida) + Capital AFORES (patrimonio admin)
 
 export type LiquidezCategoria = 'liquido' | 'vinculado' | 'operativo';
 
@@ -21,9 +21,6 @@ export interface ComponenteSar {
 export const PENSIONAL_SEED = {
   buildDate: '2026-04-22',
   fechaSnapshot: '2025-06-01',
-
-  // Tasa real anual usada en cálculo P1 — supuesto conservador estándar
-  tasaRealAnual: 0.04,
 
   // ---------- CONSAR — totales + composición 8 componentes 2025-06 ----------
   consar: {
@@ -44,23 +41,10 @@ export const PENSIONAL_SEED = {
     ] as ReadonlyArray<ComponenteSar>,
   },
 
-  // ---------- ENIGH — hogares jubilados actuales 2024 NS ----------
-  enigh: {
-    nHogaresJubilados: 7169614,
-    pctHogaresJubilados: 18.46,
-    promedioMensualJubilacion: 11272.60,      // el API devuelve MEAN, no mediana
-    promedioTrimestralJubilacion: 33817.81,
-  },
-
   sourceConsar: {
     title: 'CONSAR vía datos.gob.mx — CC-BY-4.0',
     url: 'https://repodatos.atdt.gob.mx/api_update/consar/monto_recursos_registrados_afore/09_recursos.csv',
     md5: '19083c9a46d9d958b1428056c2f5f0b1',
-    consulted: '2026-04-22',
-  },
-  sourceEnigh: {
-    title: 'ENIGH 2024 Nueva Serie — INEGI',
-    url: 'https://www.inegi.org.mx/programas/enigh/nc/2024/',
     consulted: '2026-04-22',
   },
 } as const;

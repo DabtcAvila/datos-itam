@@ -3,7 +3,6 @@ import { buildNavTabs } from '../shared/nav';
 import {
   buildPensionalHero,
   buildP2_ViviendaCongelada,
-  buildP1_Cobertura42,
   buildPensionalAbout,
 } from '../pensional/components';
 import { buildPensionalChartsScript } from '../pensional/charts';
@@ -20,10 +19,10 @@ export function renderPensionalDashboard(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>datos-itam | Pensional · CONSAR × ENIGH ejercicios aritméticos</title>
-  <meta name="description" content="Dos ejercicios cuantitativos cruzando CONSAR (stock SAR 2025-06) y ENIGH (hogares jubilados 2024 NS). Presentación descriptiva con caveats metodológicos, sin interpretación del observatorio.">
+  <title>datos-itam | Pensional · Composición descriptiva SAR</title>
+  <meta name="description" content="Desglose descriptivo del SAR mexicano junio 2025 en tres categorías de liquidez según la legislación aplicable. Snapshot oficial CONSAR, sin interpretación del observatorio.">
   <meta property="og:title" content="Pensional — Observatorio datos-itam">
-  <meta property="og:description" content="CONSAR × ENIGH. Dos ejercicios aritméticos con datos públicos. Presentación descriptiva, sin interpretaciones del observatorio.">
+  <meta property="og:description" content="CONSAR 2025-06. Composición descriptiva del SAR por régimen de liquidez.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://datos-itam.org/pensional">
   <meta name="twitter:card" content="summary">
@@ -35,12 +34,12 @@ export function renderPensionalDashboard(): string {
   <header class="header">
     <div>
       <div class="header-brand">datos<span>-</span>itam</div>
-      <div class="header-subtitle">Pensional — CONSAR × ENIGH · ejercicios cuantitativos</div>
+      <div class="header-subtitle">Pensional — CONSAR · composición descriptiva</div>
     </div>
     <div class="header-meta">
       <span class="live-badge" id="pensionalLiveBadge">EN VIVO</span>
       <span class="header-badge">Validado: ${buildDate}</span>
-      <span class="header-badge">2 dashboards</span>
+      <span class="header-badge">1 dashboard</span>
     </div>
   </header>
 
@@ -50,9 +49,7 @@ export function renderPensionalDashboard(): string {
 
     ${buildPensionalHero()}
 
-    <!-- Orden pedagógico: P2 primero (estructural, descriptivo) → P1 después (hipótesis narrativa fuerte) -->
     ${buildP2_ViviendaCongelada()}
-    ${buildP1_Cobertura42()}
 
     ${buildPensionalAbout()}
 

@@ -1,28 +1,19 @@
-// Pensional S12 — componentes narrativos.
-// Hero + P2 (Vivienda activo congelado) + P1 (42% cobertura) + About.
-// Orden pedagógico: P2 primero (estructural), P1 después (hipótesis fuerte con más caveats).
+// Pensional — componentes narrativos.
+// Hero + P2 (Composición del SAR por liquidez) + About.
 
 import { PENSIONAL_SEED } from './seed';
 import {
   computeLiquidityPartition,
-  computeCoverage,
   formatBill,
   formatMm,
-  formatN,
   formatPct,
 } from './computations';
 
-// Derivados pre-computados en SSR — se recalculan en live-data al refresh
+// Derivado pre-computado en SSR — se recalcula en live-data al refresh
 const PARTITION = computeLiquidityPartition(PENSIONAL_SEED.consar.componentes);
-const COVERAGE = computeCoverage({
-  sarTotalMm: PENSIONAL_SEED.consar.sarTotalMm,
-  nHogaresJubilados: PENSIONAL_SEED.enigh.nHogaresJubilados,
-  promedioMensualJubilacion: PENSIONAL_SEED.enigh.promedioMensualJubilacion,
-  tasaRealAnual: PENSIONAL_SEED.tasaRealAnual,
-});
 
 // ---------------------------------------------------------------------
-// Caveat meta (reutilizado en ambas secciones al final)
+// Caveat meta (reutilizado al final de P2)
 // ---------------------------------------------------------------------
 
 function buildCaveatMeta(opts: {
@@ -57,16 +48,17 @@ export function buildPensionalHero(): string {
     <section class="hero">
       <div class="hero-content">
         <p class="hero-text">
-          Ejercicios cuantitativos cross-dataset <strong>CONSAR × ENIGH</strong>. Presentación
-          descriptiva de cálculos con datos públicos, sin interpretación del observatorio.
-          Un análisis de sostenibilidad pensional requiere modelos actuariales, datos demográficos
-          y proyecciones multi-cohorte fuera del alcance de esta sección. Los cálculos se exponen
-          por transparencia de cómputo.
+          Ejercicio cuantitativo descriptivo sobre la composición del SAR mexicano por régimen
+          de liquidez, usando el snapshot oficial <strong>CONSAR junio 2025</strong>. Presentación
+          descriptiva, sin interpretación del observatorio. El cálculo se expone por transparencia
+          de agrupación contable; cualquier análisis sobre el sistema pensional requiere modelos
+          actuariales, datos demográficos y consideración integrada fuera del alcance de esta
+          sección.
         </p>
         <div class="hero-badges">
           <span class="hero-badge">SAR: ${formatBill(PENSIONAL_SEED.consar.sarTotalMm)} MXN</span>
-          <span class="hero-badge">${formatN(PENSIONAL_SEED.enigh.nHogaresJubilados)} hogares jubilados</span>
-          <span class="hero-badge">2 ejercicios aritméticos</span>
+          <span class="hero-badge">8 componentes contables</span>
+          <span class="hero-badge">1 ejercicio descriptivo</span>
         </div>
         <p class="enigh-seed-note">
           Cifras validadas contra API el <strong>${buildDateFmt}</strong>. Se refrescan vía fetch al cargar.
@@ -208,175 +200,6 @@ export function buildP2_ViviendaCongelada(): string {
 }
 
 // ---------------------------------------------------------------------
-// P1 — Stock pensional vs flujo necesario (42% cobertura)
-// ---------------------------------------------------------------------
-
-export function buildP1_Cobertura42(): string {
-  const c = COVERAGE;
-  const coberturaRedondeada = Math.round(c.coberturaPct);
-
-  return `
-    <section class="enigh-section enigh-section--featured" id="p1-cobertura">
-      <div class="enigh-section-featured-eyebrow">Ejercicio aritmético · cruce CONSAR stock × ENIGH flujo</div>
-      <h2 class="section-title">P1 · Ejercicio aritmético: rendimiento SAR vs flujo de jubilaciones actuales</h2>
-      <p class="section-intro">
-        Ejercicio aritmético con datos públicos. El SAR acumulado
-        (<strong>${formatBill(c.sarTotalMm)} MXN</strong> junio 2025), bajo un supuesto default de
-        rendimiento real <strong>${formatPct(c.tasaRealAnual * 100, 0)} anual</strong>, produciría
-        <strong>${formatMm(c.rendimientoAnualSarMm)} MXN al año</strong>. Los
-        <strong>${formatN(c.nHogaresJubilados)} hogares jubilados ENIGH 2024</strong> reciben un promedio
-        mensual de <strong>$${formatN(Math.round(c.promedioMensualJubilacion))}</strong>, lo que implica un
-        pago anual total de <strong>${formatMm(c.pagoAnualImplicitoMm)} MXN</strong>. El cociente
-        rendimiento/pago se reporta abajo. Este dashboard presenta el cómputo con datos públicos;
-        no constituye análisis de sostenibilidad del sistema pensional, que requiere modelos actuariales,
-        datos demográficos, proyecciones multi-cohorte y consideración integrada de las múltiples
-        fuentes de ingreso del hogar jubilado.
-      </p>
-
-      <div class="kpis">
-        <div class="kpi kpi--blue">
-          <div class="kpi-label">SAR Nacional (stock)</div>
-          <div class="kpi-value" id="p1-kpi-sar" data-target="${c.sarTotalMm}" data-prefix="$" data-suffix=" mm">$0</div>
-          <div class="kpi-sub">${formatBill(c.sarTotalMm)} MXN corrientes · junio 2025</div>
-        </div>
-        <div class="kpi kpi--green">
-          <div class="kpi-label">Hogares jubilados ENIGH</div>
-          <div class="kpi-value" id="p1-kpi-hogares" data-target="${c.nHogaresJubilados}" data-suffix="">0</div>
-          <div class="kpi-sub">${formatPct(PENSIONAL_SEED.enigh.pctHogaresJubilados, 2)} de hogares nacionales</div>
-        </div>
-        <div class="kpi kpi--purple">
-          <div class="kpi-label">Promedio mensual / hogar</div>
-          <div class="kpi-value" id="p1-kpi-promedio" data-target="${c.promedioMensualJubilacion}" data-prefix="$" data-decimals="0">$0</div>
-          <div class="kpi-sub">ENIGH 2024 NS · solo hogares que reciben</div>
-        </div>
-        <div class="kpi kpi--yellow">
-          <div class="kpi-label">Pago anual implícito (flujo)</div>
-          <div class="kpi-value" id="p1-kpi-flujo" data-target="${c.pagoAnualImplicitoMm}" data-prefix="$" data-suffix=" mm">$0</div>
-          <div class="kpi-sub">n_hogares × promedio_mensual × 12</div>
-        </div>
-        <div class="kpi kpi--blue">
-          <div class="kpi-label">Rendimiento SAR @ ${formatPct(c.tasaRealAnual * 100, 0)} real</div>
-          <div class="kpi-value" id="p1-kpi-rendimiento" data-target="${c.rendimientoAnualSarMm}" data-prefix="$" data-suffix=" mm">$0</div>
-          <div class="kpi-sub">SAR_total × tasa_real_anual · supuesto default del ejercicio</div>
-        </div>
-      </div>
-
-      <div class="chart-card full-width">
-        <h3>Rendimiento SAR (supuesto 4% real) vs pago anual implícito ENIGH</h3>
-        <div class="chart-wrapper">
-          <canvas id="p1Chart" role="img" aria-label="Gráfico de barras vertical comparando el rendimiento SAR bajo supuesto 4% real contra el pago anual implícito a hogares jubilados ENIGH"></canvas>
-        </div>
-        <p class="chart-note">
-          La barra izquierda (azul) representa el rendimiento del SAR al ${formatPct(c.tasaRealAnual * 100, 0)}
-          real sobre ${formatBill(c.sarTotalMm)} MXN. La barra derecha (ámbar) es el pago anual implícito:
-          ${formatN(c.nHogaresJubilados)} hogares × $${formatN(Math.round(c.promedioMensualJubilacion))} × 12
-          meses. El cociente rendimiento/pago se presenta en el recuadro inferior.
-        </p>
-      </div>
-
-      <!-- Bloque descriptivo — resultado del cálculo -->
-      <div class="comparativo-pensional-insight">
-        <div class="comparativo-pensional-insight-eyebrow">Resultado del cálculo · cociente rendimiento/pago</div>
-        <div class="comparativo-pensional-insight-body">
-          Cociente aritmético bajo el supuesto ${formatPct(c.tasaRealAnual * 100, 0)} real:
-          rendimiento SAR / pago anual implícito =
-          <strong id="p1-big-cobertura">${coberturaRedondeada}%</strong>
-          (con un decimal, <span id="p1-cobertura-inline">${formatPct(c.coberturaPct, 1)}</span>).
-          El cociente relaciona dos magnitudes diferenciadas por cohorte beneficiaria (stock SAR
-          post-1997 Ley 97, flujo jubilados actuales mayoritariamente pre-1997 Ley 73). Los caveats
-          metodológicos listados abajo describen las condiciones del cálculo.
-        </div>
-      </div>
-
-      <!-- 4 caveats metodológicos -->
-      <div class="comparativo-caveats-expanded">
-        <div class="comparativo-caveats-expanded-title">Cuatro caveats metodológicos del cálculo</div>
-        <ol>
-          <li>
-            <strong>Los hogares jubilados actuales no son mayoritariamente dueños del SAR.</strong>
-            Bajo la Ley del Seguro Social de 1973 (régimen de reparto) los actuales jubilados IMSS no
-            tienen cuenta AFORE individual. El SAR administra cuentas Ley 97 (post-1997) que pagarán
-            pensión a cohortes que se jubilen en décadas futuras. Este cociente se calcula sobre
-            stock y flujo de dos universos parcialmente distintos.
-          </li>
-          <li>
-            <strong>Cohortes beneficiarias del SAR distintas de los jubilados actuales.</strong>
-            El stock acumulado está destinado por diseño legal a las cohortes que cotizaron en cuentas
-            individuales post-1997 (Ley 97). Los jubilados ENIGH actuales reciben mayoritariamente
-            pensiones bajo reglas previas (Ley 73), financiadas con ingresos corrientes del Estado
-            federal, no con el SAR. Una cuantificación actuarial completa del sistema requeriría
-            modelación multi-cohorte fuera del alcance.
-          </li>
-          <li>
-            <strong>Cálculo usa promedio mensual ENIGH, no mediana.</strong>
-            ENIGH reporta un promedio de $${formatN(Math.round(c.promedioMensualJubilacion))}/mes para
-            hogares jubilados. La mediana (probablemente menor por colas largas asociadas a pensiones
-            altas IMSS Ley 73 e ISSSTE) modificaría el pago anual implícito en dirección conocida.
-            El dashboard reporta el cociente con promedio por transparencia de cómputo.
-          </li>
-          <li>
-            <strong>Vivienda representa ${formatPct(PARTITION.vinculado.pct, 2)} del SAR bajo régimen distinto.</strong>
-            Si se excluyera el componente Vivienda del cálculo (manteniendo solo la fracción
-            ${formatBill(PARTITION.liquido.totalMm)}), el rendimiento bajo el mismo supuesto
-            ${formatPct(c.tasaRealAnual * 100, 0)} sería ${formatMm(PARTITION.liquido.totalMm * c.tasaRealAnual)}
-            y el cociente cambiaría proporcionalmente. Ver
-            <a href="#p2-liquidez"><strong>P2</strong></a> para el desglose contable.
-          </li>
-        </ol>
-      </div>
-
-      <!-- 2 caveats secundarios colapsables -->
-      <details class="comparativo-caveats-expanded" style="border-left-color: var(--text-muted);">
-        <summary class="comparativo-caveats-expanded-title" style="cursor: pointer; list-style: revert;">
-          Dos caveats adicionales · contexto metodológico
-        </summary>
-        <ol start="5">
-          <li>
-            <strong>Flujos pensionales paralelos no incluidos en el cálculo.</strong>
-            El pago anual a jubilados ENIGH proviene de múltiples fuentes no reflejadas en el SAR:
-            ISSSTE régimen de reparto (pensiones pre-2007), IMSS Ley 73 (cuasi-fiscal, pagado por el
-            gobierno federal), Pensión para el Bienestar (transferencia no contributiva para adultos
-            mayores de 65 años). El ejercicio se limita a las dos magnitudes declaradas en el cómputo.
-          </li>
-          <li>
-            <strong>Supuesto de tasa 4% real es un valor default del ejercicio.</strong>
-            Las SIEFORE básicas han promediado en un rango histórico distinto al supuesto, con
-            volatilidad significativa entre clases de SB (perfil de riesgo distinto por cohorte de
-            afiliado). Escenarios alternativos de tasa (2%, 3%, 5%, 6%) modificarían proporcionalmente
-            el rendimiento reportado y el cociente resultante. Un análisis multi-escenario queda
-            fuera del alcance actual.
-          </li>
-        </ol>
-      </details>
-
-      <!-- Roadmap box -->
-      <div class="comparativo-roadmap">
-        <div class="comparativo-roadmap-title">Datos adicionales para extensiones futuras del ejercicio</div>
-        <p>
-          Datos que permitirían ampliar el ejercicio aritmético: densidad de cotización IMSS
-          (fracción del trabajo formal en la carrera promedio del trabajador), cuentas administradas
-          vs cuentas asignadas por AFORE (para computar magnitudes per cápita), ENIGH histórico
-          2016-2022 (para extender el cómputo a años previos) y escenarios alternativos de tasa
-          (2%, 3%, 5%, 6% real).
-        </p>
-        <p style="margin-top: 0.7rem;">
-          <strong>Dato disponible:</strong> la serie mensual 1998-2025 del SAR está en
-          <a href="/consar"><strong>/consar D1</strong></a>.
-        </p>
-      </div>
-
-      ${buildCaveatMeta({
-        unidad: 'Millones de pesos MXN corrientes · cruce CONSAR stock + ENIGH flujo',
-        fuente: 'CONSAR (sar_total junio 2025) × ENIGH 2024 NS (hogares con jubilación>0, mean mensual)',
-        fuenteUrl: PENSIONAL_SEED.sourceConsar.url,
-        metodologia: 'Rendimiento_anual = SAR_total × tasa_real_anual. Pago_anual_implícito = n_hogares × promedio_mensual × 12. Cociente = Rendimiento_anual / Pago_anual_implícito (%).',
-        validado: PENSIONAL_SEED.buildDate,
-      })}
-    </section>
-  `;
-}
-
-// ---------------------------------------------------------------------
 // About
 // ---------------------------------------------------------------------
 
@@ -385,18 +208,19 @@ export function buildPensionalAbout(): string {
     <section class="about" id="about">
       <h2>Sobre esta sección</h2>
       <p>
-        <strong>Método:</strong> cruce descriptivo de dos datasets públicos ya incorporados al observatorio
-        — CONSAR (stock SAR 8 componentes) y ENIGH 2024 NS (flujo jubilaciones a hogares). No se agregaron
-        endpoints backend nuevos; el frontend compone los cálculos derivados sobre respuestas JSON existentes.
+        <strong>Método:</strong> desglose descriptivo del snapshot oficial CONSAR (8 componentes
+        SAR, junio 2025) en categorías de liquidez según la legislación aplicable a cada subcuenta.
+        No se agregaron endpoints backend nuevos; el frontend agrupa los componentes sobre la
+        respuesta JSON existente del endpoint público.
       </p>
       <p>
         <strong>Datos base:</strong>
-        <a href="/consar"><strong>/consar</strong></a> (serie mensual 1998-2025, 11 AFOREs, identidad contable verificada) y
-        <a href="/enigh"><strong>/enigh</strong></a> (91,414 hogares muestra, 38.8M expandidos).
+        <a href="/consar"><strong>/consar</strong></a> (serie mensual 1998-2025, 11 AFOREs,
+        identidad contable verificada).
       </p>
       <p>
-        <strong>Alcance:</strong> los dashboards P1 y P2 son ejercicios aritméticos con datos públicos
-        CONSAR y ENIGH. Su interpretación en términos del sistema pensional mexicano requiere análisis
+        <strong>Alcance:</strong> el dashboard P2 es un ejercicio descriptivo con datos públicos
+        CONSAR. Su interpretación en términos del sistema pensional mexicano requiere análisis
         actuarial y demográfico fuera del alcance del observatorio. Cada caveat describe las
         condiciones del cómputo, no una conclusión.
       </p>
