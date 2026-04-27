@@ -33,14 +33,14 @@ test.describe('Pensional landing page', () => {
     expect(navigation, 'no navigation response').not.toBeNull();
     expect(navigation!.status()).toBe(200);
 
-    // Tab Pensional active (5th tab)
+    // Tab Pensional active
     const pensionalTab = page.locator('a.dataset-tab[href="/pensional"]');
     await expect(pensionalTab).toBeVisible();
     await expect(pensionalTab).toHaveAttribute('aria-current', 'page');
     await expect(pensionalTab).toHaveClass(/\bactive\b/);
 
-    // Navigation has 5 tabs total
-    await expect(page.locator('a.dataset-tab')).toHaveCount(5);
+    // Navigation has 6 tabs total (Bonos added in S15)
+    await expect(page.locator('a.dataset-tab')).toHaveCount(6);
 
     // Single section title — composición SAR
     const sectionTitles = page.locator('section.enigh-section > h2.section-title');
