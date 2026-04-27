@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Navigation across the five dataset tabs', () => {
-  test('tab cycle CDMX → ENIGH → Comparativo → CONSAR → Pensional → CDMX updates URL, active state, and content', async ({ page }) => {
+test.describe('Navigation across the six dataset tabs', () => {
+  test('tab cycle CDMX → ENIGH → Comparativo → CONSAR → Pensional → Demo → CDMX updates URL, active state, and content', async ({ page }) => {
     await page.goto('/');
 
     const cdmxTab = page.locator('a.dataset-tab[href="/"]');
@@ -9,17 +9,20 @@ test.describe('Navigation across the five dataset tabs', () => {
     const compTab = page.locator('a.dataset-tab[href="/comparativo"]');
     const consarTab = page.locator('a.dataset-tab[href="/consar"]');
     const pensionalTab = page.locator('a.dataset-tab[href="/pensional"]');
+    const demoTab = page.locator('a.dataset-tab[href="/demo"]');
 
     await expect(cdmxTab).toBeVisible();
     await expect(enighTab).toBeVisible();
     await expect(compTab).toBeVisible();
     await expect(consarTab).toBeVisible();
     await expect(pensionalTab).toBeVisible();
+    await expect(demoTab).toBeVisible();
     await expect(cdmxTab).toHaveAttribute('aria-current', 'page');
     await expect(enighTab).toHaveAttribute('aria-current', 'false');
     await expect(compTab).toHaveAttribute('aria-current', 'false');
     await expect(consarTab).toHaveAttribute('aria-current', 'false');
     await expect(pensionalTab).toHaveAttribute('aria-current', 'false');
+    await expect(demoTab).toHaveAttribute('aria-current', 'false');
     await expect(cdmxTab).toHaveClass(/\bactive\b/);
 
     // CDMX → ENIGH
@@ -54,9 +57,17 @@ test.describe('Navigation across the five dataset tabs', () => {
     await expect(page.locator('#composicion-kpi-sar')).toBeVisible();
     await expect(page.locator('#composicion-kpi-liquido-pct')).toBeVisible();
 
-    // Pensional → CDMX
+    // Pensional → Demo (read-only HR/payroll dashboard tras refactor S15.2)
+    await page.locator('a.dataset-tab[href="/demo"]').click();
+    await expect(page).toHaveURL(/\/demo\/?$/);
+    await expect(page.locator('a.dataset-tab[href="/demo"]')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('a.dataset-tab[href="/demo"]')).toHaveClass(/\bactive\b/);
+    await expect(page.locator('#kpi-empleados')).toBeVisible();
+    await expect(page.locator('#demoRefreshBtn')).toBeVisible();
+
+    // Demo → CDMX
     await page.locator('a.dataset-tab[href="/"]').click();
-    await expect(page).toHaveURL(/datos-itam\.org\/?$|:8787\/?$|localhost[:\d]*\/?$/);
+    await expect(page).toHaveURL(/datos-itam\.org\/?$|:8787\/?$|:8788\/?$|localhost[:\d]*\/?$/);
     await expect(page.locator('a.dataset-tab[href="/"]')).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('a.dataset-tab[href="/"]')).toHaveClass(/\bactive\b/);
     await expect(page.locator('#kpi-total')).toBeVisible();
