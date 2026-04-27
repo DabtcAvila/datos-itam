@@ -1,15 +1,16 @@
 """Endpoints públicos + admin para demo.curso_bd (S15).
 
-Diseño:
-  - GET públicos sin auth (la tabla es lectura libre).
-  - PUT /toggle-bono requiere JWT (require_demo_user) — la cuenta `demoabril`
+Diseño S15.2 (refactor HR/payroll empresarial):
+  - GET públicos sin auth (la tabla es lectura libre, /demo es read-only).
+  - GET /resumen agrega total empleados + bonos + monto distribuido.
+  - PUT /toggle-bono requiere JWT (require_demo_user) — la cuenta `DemoAbril`
     es compartida entre estudiantes + profesor durante el checkpoint en vivo.
   - POST/PUT/DELETE/RESET admin viven bajo /admin/demo/* (require_admin).
 
 Aislamiento: schema demo.curso_bd, NO toca cdmx/enigh/consar.
 """
 from datetime import datetime
-from typing import Optional
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import text
@@ -19,12 +20,14 @@ from app.database import engine
 from app.models.users import User
 from app.rate_limit import limiter
 from app.schemas.demo import (
+    BONO_MXN,
     CrearEstudianteRequest,
     DeleteEstudianteResponse,
     EditarEstudianteRequest,
     EstudianteRow,
     EstudiantesResponse,
     ResetResponse,
+    ResumenResponse,
     ToggleBonoResponse,
 )
 
@@ -37,18 +40,34 @@ admin_router = APIRouter(prefix="/api/v1/admin/demo", tags=["demo-admin"])
 # SQL
 # ---------------------------------------------------------------------
 
+# Orden narrativo para el frontend HR/payroll:
+#   1. profesor (1 fila)
+#   2. equipo (4 filas, organizadores)
+#   3. estudiante (7 filas)
+# Dentro de cada tipo, ORDER BY sueldo_diario_mxn DESC.
 SQL_LIST = """
-SELECT id, nombre_completo, rol, seccion, reclamar_bono,
+SELECT id, nombre_completo, rol, tipo, seccion, sueldo_diario_mxn, reclamar_bono,
        fecha_creacion, fecha_actualizacion
 FROM demo.curso_bd
-ORDER BY rol DESC, id  -- profesor primero (p > e), luego estudiantes en orden
+ORDER BY
+    CASE tipo WHEN 'profesor' THEN 1 WHEN 'equipo' THEN 2 ELSE 3 END,
+    sueldo_diario_mxn DESC,
+    nombre_completo
 """
 
 SQL_GET_ONE = """
-SELECT id, nombre_completo, rol, seccion, reclamar_bono,
+SELECT id, nombre_completo, rol, tipo, seccion, sueldo_diario_mxn, reclamar_bono,
        fecha_creacion, fecha_actualizacion
 FROM demo.curso_bd
 WHERE id = :id
+"""
+
+SQL_RESUMEN = """
+SELECT
+    COUNT(*)::int                                        AS total_empleados,
+    COUNT(*) FILTER (WHERE reclamar_bono)::int           AS bonos_reclamados,
+    COALESCE(SUM(sueldo_diario_mxn), 0)::numeric         AS nomina_diaria_total_mxn
+FROM demo.curso_bd
 """
 
 SQL_TOGGLE_BONO = """
@@ -59,9 +78,11 @@ RETURNING id, nombre_completo, reclamar_bono, fecha_actualizacion
 """
 
 SQL_INSERT = """
-INSERT INTO demo.curso_bd (nombre_completo, rol, seccion)
-VALUES (:nombre_completo, :rol, COALESCE(:seccion, 'BASES DE DATOS - 001'))
-RETURNING id, nombre_completo, rol, seccion, reclamar_bono,
+INSERT INTO demo.curso_bd (nombre_completo, rol, tipo, seccion, sueldo_diario_mxn)
+VALUES (:nombre_completo, :rol, :tipo,
+        COALESCE(:seccion, 'BASES DE DATOS - 001'),
+        :sueldo_diario_mxn)
+RETURNING id, nombre_completo, rol, tipo, seccion, sueldo_diario_mxn, reclamar_bono,
           fecha_creacion, fecha_actualizacion
 """
 
@@ -87,8 +108,10 @@ RETURNING id
     response_model=EstudiantesResponse,
     summary="Lista del curso ITAM Bases de Datos sección 001",
     description=(
-        "Retorna las 12 personas del curso (11 estudiantes + 1 profesor) "
-        "con su estado actual de `reclamar_bono`. Lectura pública sin auth."
+        "Retorna las 12 personas del curso (1 profesor + 4 equipo + 7 estudiantes) "
+        "con sueldo diario, tipo, y estado actual de `reclamar_bono`. "
+        "Lectura pública sin auth. Orden: profesor → equipo (por sueldo desc) → "
+        "estudiantes (por sueldo desc)."
     ),
 )
 @limiter.limit("60/minute")
@@ -125,7 +148,40 @@ async def get_estudiante(request: Request, id: int) -> EstudianteRow:
 
 
 # ---------------------------------------------------------------------
-# 3. PUT /api/v1/demo/estudiantes/{id}/toggle-bono (auth: require_demo_user)
+# 3. GET /api/v1/demo/resumen (público) — KPIs agregados para el dashboard
+# ---------------------------------------------------------------------
+
+
+@public_router.get(
+    "/resumen",
+    response_model=ResumenResponse,
+    summary="Agregados para la KPI bar del dashboard /demo",
+    description=(
+        "Totales en una sola llamada: empleados, bonos reclamados, monto distribuido "
+        "(N × $50,000 MXN), monto disponible (resto del pool), monto total posible "
+        "(12 × $50,000 = $600,000 MXN), y nómina diaria total."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_resumen(request: Request) -> ResumenResponse:
+    async with engine.connect() as conn:
+        row = (await conn.execute(text(SQL_RESUMEN))).mappings().one()
+    total = int(row["total_empleados"])
+    bonos = int(row["bonos_reclamados"])
+    return ResumenResponse(
+        total_empleados=total,
+        bonos_reclamados=bonos,
+        bono_unitario_mxn=BONO_MXN,
+        monto_distribuido_mxn=bonos * BONO_MXN,
+        monto_disponible_mxn=(total - bonos) * BONO_MXN,
+        monto_total_posible_mxn=total * BONO_MXN,
+        nomina_diaria_total_mxn=Decimal(row["nomina_diaria_total_mxn"]),
+        fecha=datetime.utcnow(),
+    )
+
+
+# ---------------------------------------------------------------------
+# 4. PUT /api/v1/demo/estudiantes/{id}/toggle-bono (auth: require_demo_user)
 # ---------------------------------------------------------------------
 
 
@@ -135,9 +191,9 @@ async def get_estudiante(request: Request, id: int) -> EstudianteRow:
     summary="Toggle del campo reclamar_bono (requiere login)",
     description=(
         "Invierte el booleano `reclamar_bono` de la fila indicada. Cualquier "
-        "usuario autenticado puede tocar cualquier fila — la cuenta `demoabril` "
-        "es compartida durante la demo en vivo. Para auditoría de la demo se "
-        "retorna `actor_username`."
+        "usuario autenticado puede tocar cualquier fila — la cuenta `DemoAbril` "
+        "es compartida durante la demo en vivo. Para auditoría se retorna "
+        "`actor_username`. El monto del bono es flat $50,000 MXN."
     ),
 )
 @limiter.limit("30/minute")
@@ -162,7 +218,7 @@ async def toggle_bono(
 
 
 # ---------------------------------------------------------------------
-# 4. POST /api/v1/admin/demo/estudiantes (admin)
+# 5. POST /api/v1/admin/demo/estudiantes (admin)
 # ---------------------------------------------------------------------
 
 
@@ -185,7 +241,9 @@ async def crear_estudiante(
                 {
                     "nombre_completo": payload.nombre_completo,
                     "rol": payload.rol,
+                    "tipo": payload.tipo,
                     "seccion": payload.seccion,
+                    "sueldo_diario_mxn": payload.sueldo_diario_mxn,
                 },
             )).mappings().one()
             await conn.commit()
@@ -198,7 +256,7 @@ async def crear_estudiante(
 
 
 # ---------------------------------------------------------------------
-# 5. PUT /api/v1/admin/demo/estudiantes/{id} (admin)
+# 6. PUT /api/v1/admin/demo/estudiantes/{id} (admin)
 # ---------------------------------------------------------------------
 
 
@@ -224,8 +282,8 @@ async def editar_estudiante(
     set_clause = ", ".join(f"{k} = :{k}" for k in updates)
     sql = (
         f"UPDATE demo.curso_bd SET {set_clause} WHERE id = :id "
-        "RETURNING id, nombre_completo, rol, seccion, reclamar_bono, "
-        "fecha_creacion, fecha_actualizacion"
+        "RETURNING id, nombre_completo, rol, tipo, seccion, sueldo_diario_mxn, "
+        "reclamar_bono, fecha_creacion, fecha_actualizacion"
     )
     params: dict[str, object] = {**updates, "id": id}
 
@@ -239,7 +297,7 @@ async def editar_estudiante(
 
 
 # ---------------------------------------------------------------------
-# 6. DELETE /api/v1/admin/demo/estudiantes/{id} (admin)
+# 7. DELETE /api/v1/admin/demo/estudiantes/{id} (admin)
 # ---------------------------------------------------------------------
 
 
@@ -264,7 +322,7 @@ async def borrar_estudiante(
 
 
 # ---------------------------------------------------------------------
-# 7. POST /api/v1/admin/demo/reset (admin) — limpia todos los toggles
+# 8. POST /api/v1/admin/demo/reset (admin) — limpia todos los toggles
 # ---------------------------------------------------------------------
 
 
