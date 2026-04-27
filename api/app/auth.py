@@ -62,3 +62,13 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Admin privileges required",
         )
     return current_user
+
+
+async def require_demo_user(current_user: User = Depends(get_current_user)) -> User:
+    """Cualquier usuario autenticado (admin o no) puede operar el toggle de /demo.
+
+    Alias semántico de get_current_user para que la firma del endpoint declare
+    explícitamente "esto requiere login pero no privilegios admin". Útil para
+    diferenciarlo visualmente de require_admin en /admin/demo/*.
+    """
+    return current_user

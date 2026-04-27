@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 from app.database import engine
 from app.rate_limit import limiter
-from app.routers import admin, analytics, auth, catalogos, comparativo, consar, dashboard, enigh, export, ingest, nombramientos, personas, sectores, servidores
+from app.routers import admin, analytics, auth, catalogos, comparativo, consar, dashboard, demo, enigh, export, ingest, nombramientos, personas, sectores, servidores
 
 
 @asynccontextmanager
@@ -85,7 +85,7 @@ app.add_middleware(
 )
 
 
-WRITE_PREFIXES = ("/api/v1/auth", "/api/v1/personas", "/api/v1/nombramientos", "/api/v1/ingest", "/api/v1/admin")
+WRITE_PREFIXES = ("/api/v1/auth", "/api/v1/personas", "/api/v1/nombramientos", "/api/v1/ingest", "/api/v1/admin", "/api/v1/demo")
 
 
 def _set_public_cache(response, cache_value: str) -> None:
@@ -148,6 +148,8 @@ app.include_router(ingest.router)
 app.include_router(enigh.router)
 app.include_router(comparativo.router)
 app.include_router(consar.router)
+app.include_router(demo.public_router)
+app.include_router(demo.admin_router)
 
 
 @app.get("/health")
