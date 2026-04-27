@@ -3,6 +3,7 @@ import { renderEnighDashboard } from './pages/enigh';
 import { renderComparativoDashboard } from './pages/comparativo';
 import { renderConsarDashboard } from './pages/consar';
 import { renderPensionalDashboard } from './pages/pensional';
+import { renderDemo } from './pages/demo';
 import { renderTerms } from './pages/terms';
 import { stats } from './data/stats';
 
@@ -36,6 +37,8 @@ export default {
       html = renderConsarDashboard();
     } else if (path === '/pensional') {
       html = renderPensionalDashboard();
+    } else if (path === '/demo') {
+      html = renderDemo();
     } else if (path === '/terms') {
       html = renderTerms();
     } else if (path === '/cdmx') {

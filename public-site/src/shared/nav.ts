@@ -1,4 +1,4 @@
-export type DatasetTab = 'cdmx' | 'enigh' | 'comparativo' | 'consar' | 'pensional';
+export type DatasetTab = 'cdmx' | 'enigh' | 'comparativo' | 'consar' | 'pensional' | 'demo';
 
 export function buildNavTabs(active: DatasetTab | null): string {
   const activeCdmx = active === 'cdmx' ? ' active' : '';
@@ -6,6 +6,7 @@ export function buildNavTabs(active: DatasetTab | null): string {
   const activeComp = active === 'comparativo' ? ' active' : '';
   const activeConsar = active === 'consar' ? ' active' : '';
   const activePensional = active === 'pensional' ? ' active' : '';
+  const activeDemo = active === 'demo' ? ' active' : '';
   return `
     <nav class="dataset-tabs" aria-label="Datasets">
       <a href="/" class="dataset-tab${activeCdmx}" aria-current="${active === 'cdmx' ? 'page' : 'false'}">
@@ -27,6 +28,10 @@ export function buildNavTabs(active: DatasetTab | null): string {
       <a href="/pensional" class="dataset-tab${activePensional}" aria-current="${active === 'pensional' ? 'page' : 'false'}">
         <span class="dataset-tab-title">Pensional</span>
         <span class="dataset-tab-sub">CONSAR × ENIGH — 2 hipótesis cuantificadas</span>
+      </a>
+      <a href="/demo" class="dataset-tab${activeDemo}" aria-current="${active === 'demo' ? 'page' : 'false'}">
+        <span class="dataset-tab-title">Bonos</span>
+        <span class="dataset-tab-sub">Sistema de gestión · Curso BD-001</span>
       </a>
     </nav>
   `;
