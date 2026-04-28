@@ -96,8 +96,8 @@ test.describe('Demo (HR/payroll) — flujo live contra API prod', () => {
     // en Chromium emite "$X,XXX" sin sufijo "MXN" — el contexto MXN ya está
     // explícito en la cabecera de tabla y KPI labels.
     await expect(page.locator('[data-kpi="monto_distribuido_mxn"]')).toHaveText(/\$[\d,]+/, { timeout: 15_000 });
-    // nomina diaria $37,975
-    await expect(page.locator('[data-kpi="nomina_diaria_total_mxn"]')).toHaveText(/\$37,975/, { timeout: 15_000 });
+    // nomina diaria $38,575 (post-mig 012: equipo 4×4200=16800 → SUM 38575)
+    await expect(page.locator('[data-kpi="nomina_diaria_total_mxn"]')).toHaveText(/\$38,575/, { timeout: 15_000 });
   });
 
   test('Tabla se hidrata con 12 filas, 3 tipos de pill, y profesor primero', async ({ page }) => {
@@ -181,7 +181,7 @@ test.describe('Demo API — endpoints públicos S15.2', () => {
     await ctx.dispose();
   });
 
-  test('GET /api/v1/demo/resumen retorna KPIs con bono_unitario=50000 y nomina=37975', async () => {
+  test('GET /api/v1/demo/resumen retorna KPIs con bono_unitario=50000 y nomina=38575', async () => {
     const ctx = await playwrightRequest.newContext({
       baseURL: API_BASE,
       extraHTTPHeaders: { Origin: FRONTEND_ORIGIN },
@@ -197,7 +197,7 @@ test.describe('Demo API — endpoints públicos S15.2', () => {
     expect(body.total_empleados).toBe(12);
     expect(body.bono_unitario_mxn).toBe(50_000);
     expect(body.monto_total_posible_mxn).toBe(600_000);
-    expect(parseFloat(body.nomina_diaria_total_mxn)).toBe(37975);
+    expect(parseFloat(body.nomina_diaria_total_mxn)).toBe(38575);
     // Identidad: distribuido + disponible = total_posible
     expect(body.monto_distribuido_mxn + body.monto_disponible_mxn).toBe(body.monto_total_posible_mxn);
 
