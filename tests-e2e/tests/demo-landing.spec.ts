@@ -44,15 +44,16 @@ test.describe('Demo (HR/payroll) — estructura SSR', () => {
     await expect(page.locator('#kpi-nomina .demo-kpi-label')).toHaveText(/Nómina diaria/i);
   });
 
-  test('Tabla con 5 columnas y botón Refrescar', async ({ page }) => {
+  test('Tabla con 6 columnas y botón Refrescar', async ({ page }) => {
     await page.goto('/demo');
     const headers = page.locator('#demoTable thead th');
-    await expect(headers).toHaveCount(5);
-    await expect(headers.nth(0)).toHaveText(/Nombre completo/i);
-    await expect(headers.nth(1)).toHaveText(/Rol/i);
-    await expect(headers.nth(2)).toHaveText(/Sueldo diario/i);
-    await expect(headers.nth(3)).toHaveText(/Bono \$50,000 MXN/i);
-    await expect(headers.nth(4)).toHaveText(/Estado/i);
+    await expect(headers).toHaveCount(6);
+    await expect(headers.nth(0)).toHaveText(/^ID$/);
+    await expect(headers.nth(1)).toHaveText(/Nombre completo/i);
+    await expect(headers.nth(2)).toHaveText(/Rol/i);
+    await expect(headers.nth(3)).toHaveText(/Sueldo diario/i);
+    await expect(headers.nth(4)).toHaveText(/Bono \$50,000 MXN/i);
+    await expect(headers.nth(5)).toHaveText(/Estado/i);
     await expect(page.locator('#demoRefreshBtn')).toBeVisible();
     await expect(page.locator('#demoRefreshBtn')).toContainText(/Refrescar tabla/i);
   });
@@ -114,13 +115,19 @@ test.describe('Demo (HR/payroll) — flujo live contra API prod', () => {
     await expect(firstRow).toContainText('VASQUEZ BELTRAN');
     await expect(firstRow.locator('.pill--profesor')).toBeVisible();
 
-    // Sueldo formateado con $ y 2 decimales en cada fila (col 3).
+    // Sueldo formateado con $ y 2 decimales en cada fila (col 4 ahora, post-ID).
     // Chromium es-MX produce "$X,XXX.XX" sin sufijo "MXN" — el contexto MXN
     // está explícito en el TH "Sueldo diario" y en los headers globales.
     const sueldos = await rows.locator('td.num').allTextContents();
     expect(sueldos).toHaveLength(12);
     for (const s of sueldos) {
       expect(s).toMatch(/\$[\d,]+\.\d{2}/);
+    }
+    // Cada fila debe mostrar su ID en la primera celda (formato #N)
+    const ids = await rows.locator('td.id-cell').allTextContents();
+    expect(ids).toHaveLength(12);
+    for (const id of ids) {
+      expect(id).toMatch(/^#\d{1,2}$/);
     }
   });
 

@@ -129,6 +129,14 @@ const DEMO_CSS = `
     font-weight: 500;
     color: var(--text);
   }
+  .demo-table .id-col, .demo-table .id-cell {
+    width: 56px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 0.82rem;
+  }
+  .demo-table .id-cell { letter-spacing: 0.02em; }
 
   /* ===== Badges semánticos ===== */
   .pill {
@@ -328,6 +336,7 @@ export function renderDemo(): string {
         <table class="demo-table" id="demoTable">
           <thead>
             <tr>
+              <th class="id-col">ID</th>
               <th>Nombre completo</th>
               <th>Rol</th>
               <th class="num">Sueldo diario</th>
@@ -336,7 +345,7 @@ export function renderDemo(): string {
             </tr>
           </thead>
           <tbody id="demoTableBody">
-            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:1.5rem">Cargando…</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:1.5rem">Cargando…</td></tr>
           </tbody>
         </table>
       </div>
@@ -346,12 +355,12 @@ export function renderDemo(): string {
     <!-- ===== "Cómo modificar" ===== -->
     <section class="demo-howto">
       <h2>¿Cómo modificar datos?</h2>
-      <p>Las modificaciones a esta tabla ocurren vía API REST en <a href="https://api.datos-itam.org/docs" target="_blank" rel="noopener"><code>/api/docs</code></a> (Swagger UI con botón <em>Authorize</em> integrado). La cuenta compartida del curso emite JWT de 30 min. Después de cada cambio, presione <strong>Refrescar tabla</strong> para ver el estado actualizado.</p>
+      <p>Las modificaciones a esta tabla ocurren vía API REST en <a href="https://api.datos-itam.org/docs" target="_blank" rel="noopener"><code>/api/docs</code></a> (Swagger UI con botón <em>Authorize</em> integrado). Cada empleado tiene un <strong>ID en la primera columna</strong> de la tabla — ese es el parámetro que necesita en Swagger. La cuenta compartida del curso emite JWT de 30 min. Después de cada cambio, presione <strong>Refrescar tabla</strong> para ver el estado actualizado.</p>
       <div class="demo-howto-grid">
         <a class="demo-action" href="https://api.datos-itam.org/docs#/demo/toggle_bono_api_v1_demo_estudiantes__id__toggle_bono_put" target="_blank" rel="noopener">
           <div class="demo-action-method"><span class="verb verb-PUT">PUT</span>Reclamar / cancelar bono</div>
           <div class="demo-action-title">Toggle $50,000 sobre un empleado</div>
-          <div class="demo-action-desc">Requiere JWT (cuenta compartida del curso). Invierte el booleano <code>reclamar_bono</code> de la fila indicada.</div>
+          <div class="demo-action-desc">Requiere JWT (cuenta compartida del curso). Invierte el booleano <code>reclamar_bono</code> de la fila indicada — el parámetro <code>id</code> es el número de la primera columna de la tabla.</div>
           <div class="demo-action-link">Abrir en Swagger UI →</div>
         </a>
         <a class="demo-action" href="https://api.datos-itam.org/docs#/demo-admin/crear_estudiante_api_v1_admin_demo_estudiantes_post" target="_blank" rel="noopener">
@@ -442,12 +451,13 @@ function buildDemoScript(apiBase: string): string {
 
     function renderTabla(rows) {
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:1.5rem">Sin datos.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:1.5rem">Sin datos.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(function(r) {
         var sueldo = fmtMxn2.format(parseFloat(r.sueldo_diario_mxn));
         return '<tr>' +
+                  '<td class="id-cell">#' + r.id + '</td>' +
                   '<td class="name">' + escapeHtml(r.nombre_completo) + '</td>' +
                   '<td>' + pillFor(r.tipo) + '</td>' +
                   '<td class="num">' + sueldo + '</td>' +
