@@ -567,3 +567,88 @@ class MedidaSnapshotResponse(BaseModel):
     valor_max: float
     filas: list[MedidaSnapshotRow]
     caveats: list[str]
+
+
+# ============================================================
+# S16 Sub-fase 7 — #05 cuenta_administrada
+# ============================================================
+
+class MetricaCuentaRow(BaseModel):
+    id: int
+    slug: str
+    columna_csv: str
+    descripcion: str
+    unidad: str
+    desde_fecha: date
+    orden_display: int
+    notas: Optional[str] = None
+
+
+class MetricasCuentaResponse(BaseModel):
+    n: int
+    metricas: list[MetricaCuentaRow]
+    caveats: list[str]
+
+
+class CuentaAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class CuentaMetricaRef(BaseModel):
+    slug: str
+    descripcion: str
+    unidad: str
+    desde_fecha: date
+
+
+class CuentaPunto(BaseModel):
+    fecha: date
+    valor: int
+
+
+class CuentaSerieResponse(BaseModel):
+    afore: CuentaAforeRef
+    metrica: CuentaMetricaRef
+    n_puntos: int
+    rango: SerieRango
+    serie: list[CuentaPunto]
+    caveats: list[str]
+
+
+class CuentaSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    metrica_slug: str
+    metrica_descripcion: str
+    valor: int
+
+
+class CuentaSnapshotResponse(BaseModel):
+    fecha: date
+    n_filas: int
+    filas: list[CuentaSnapshotRow]
+    caveats: list[str]
+
+
+class CuentaSistemaEtiquetaRef(BaseModel):
+    slug: str
+    nombre_display: str
+    categoria: str
+
+
+class CuentaSistemaPunto(BaseModel):
+    fecha: date
+    etiqueta_slug: str
+    etiqueta_categoria: str
+    metrica_slug: str
+    valor: int
+
+
+class CuentaSistemaResponse(BaseModel):
+    n_puntos: int
+    etiquetas: list[CuentaSistemaEtiquetaRef]
+    metricas: list[CuentaMetricaRef]
+    serie: list[CuentaSistemaPunto]
+    caveats: list[str]

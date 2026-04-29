@@ -68,6 +68,17 @@ from app.schemas.consar import (
     MedidaSerieResponse,
     MedidaSnapshotRow,
     MedidaSnapshotResponse,
+    MetricaCuentaRow,
+    MetricasCuentaResponse,
+    CuentaAforeRef,
+    CuentaMetricaRef,
+    CuentaPunto,
+    CuentaSerieResponse,
+    CuentaSnapshotRow,
+    CuentaSnapshotResponse,
+    CuentaSistemaEtiquetaRef,
+    CuentaSistemaPunto,
+    CuentaSistemaResponse,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -2045,4 +2056,339 @@ async def get_medida_snapshot(
         valor_max=max(f.valor for f in filas),
         filas=filas,
         caveats=caveats,
+    )
+
+
+# ============================================================
+# S16 Sub-fase 7 — #05 cuenta_administrada (4 endpoints)
+# ============================================================
+
+CAVEAT_CUENTA_BIGINT = (
+    "Métricas reportadas como counts BIGINT (cuentas o trabajadores). Empíricamente "
+    "todos los valores en CSV son integer (no fraccionarios). Producción adopta BIGINT "
+    "vs ds3 NUMERIC(20,2) por exactitud semántica y eficiencia."
+)
+CAVEAT_CUENTA_DESDE_FECHA = (
+    "Cobertura temporal heterogénea por métrica: total_cuentas_afores y trabajadores_imss/"
+    "registrados desde 1997-12; trabajadores_asignados desde 2001-06; subdivisiones "
+    "asignados_banco_mexico/siefores desde 2012-01; trabajadores_independientes/issste "
+    "desde 2005-08; cuentas_inhabilitadas desde 2024-09 (reforma); cuentas_bienestar_010 "
+    "desde 2024-07 (reforma Pensión Bienestar)."
+)
+CAVEAT_CUENTA_IDENTIDAD_SAR = (
+    "Identidad SAR triple-capa post-reforma 2024 (descriptiva): "
+    "pre-2024-07 cierre 100% (sentinel total_sar = Σ commercial.total_afores); "
+    "2024-07/08 cierre 100% (commercial + bienestar); "
+    "2024-09+ emerge residuo creciente NO atribuible (5,552,645 en 2025-06). "
+    "Causa específica del residuo no determinable con dataset #05; probable atribución "
+    "a cuentas en transición jurisdiccional bajo reforma 2024."
+)
+CAVEAT_CUENTA_NO_COMMERCIAL = (
+    "Etiquetas no-commercial agrupadas en /cuentas/sistema con 3 categorías: "
+    "sistema_total (total_cuentas_sar — agregado SAR completo), "
+    "sistema_categoria_especial (cuentas_bienestar_010 — categoría reformista 2024), "
+    "administrativa_especial (prestadora_de_servicios — entidad regulatoria especial)."
+)
+
+
+SQL_METRICAS_CUENTA = """
+SELECT id, slug, columna_csv, descripcion, unidad, desde_fecha, orden_display, notas
+FROM consar.cat_metrica_cuenta
+ORDER BY orden_display
+"""
+
+
+SQL_CUENTA_SERIE_META = """
+SELECT
+    a.codigo            AS afore_codigo,
+    a.nombre_corto      AS afore_nombre_corto,
+    a.tipo_pension      AS afore_tipo_pension,
+    m.slug              AS metrica_slug,
+    m.descripcion       AS metrica_descripcion,
+    m.unidad            AS metrica_unidad,
+    m.desde_fecha       AS metrica_desde_fecha
+FROM consar.afores a, consar.cat_metrica_cuenta m
+WHERE a.codigo = :afore_codigo
+  AND m.slug   = :metrica_slug
+"""
+
+SQL_CUENTA_SERIE = """
+SELECT c.fecha, c.valor
+FROM consar.cuenta_administrada c
+JOIN consar.afores a              ON a.id = c.afore_id
+JOIN consar.cat_metrica_cuenta m  ON m.id = c.metrica_id
+WHERE a.codigo = :afore_codigo
+  AND m.slug   = :metrica_slug
+ORDER BY c.fecha
+"""
+
+SQL_CUENTA_SNAPSHOT = """
+SELECT a.codigo            AS afore_codigo,
+       a.nombre_corto      AS afore_nombre_corto,
+       m.slug              AS metrica_slug,
+       m.descripcion       AS metrica_descripcion,
+       c.valor             AS valor
+FROM consar.cuenta_administrada c
+JOIN consar.afores a              ON a.id = c.afore_id
+JOIN consar.cat_metrica_cuenta m  ON m.id = c.metrica_id
+WHERE c.fecha = :fecha
+ORDER BY m.orden_display, a.codigo
+"""
+
+SQL_CUENTA_SISTEMA_META = """
+SELECT slug, descripcion, unidad, desde_fecha
+FROM consar.cat_metrica_cuenta
+WHERE slug = :metrica_slug
+"""
+
+SQL_CUENTA_SISTEMA_ETIQUETAS = """
+SELECT slug, nombre_display, categoria
+FROM consar.cat_cuenta_etiqueta_agg
+ORDER BY id
+"""
+
+SQL_CUENTA_SISTEMA_SERIE = """
+SELECT g.fecha,
+       e.slug      AS etiqueta_slug,
+       e.categoria AS etiqueta_categoria,
+       m.slug      AS metrica_slug,
+       g.valor
+FROM consar.cuenta_administrada_agg g
+JOIN consar.cat_cuenta_etiqueta_agg e ON e.id = g.etiqueta_id
+JOIN consar.cat_metrica_cuenta m      ON m.id = g.metrica_id
+WHERE m.slug = :metrica_slug
+ORDER BY g.fecha, e.id
+"""
+
+
+@router.get(
+    "/metricas-cuenta",
+    response_model=MetricasCuentaResponse,
+    summary="Catálogo descubrible: 11 métricas operacionales de cuentas administradas",
+    description=(
+        "Retorna las 11 métricas operacionales reportadas en dataset #05 "
+        "(cuentas_inhabilitadas, total_cuentas_afores, trabajadores_imss/issste/registrados/"
+        "asignados/independientes, etc.) con su unidad (count BIGINT) y desde_fecha "
+        "(primera fecha empírica). Útil para clientes que descubren slugs antes de "
+        "consultar /cuentas/serie, /cuentas/snapshot o /cuentas/sistema."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_metricas_cuenta(request: Request) -> MetricasCuentaResponse:
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_METRICAS_CUENTA))).mappings().all()
+
+    metricas = [
+        MetricaCuentaRow(
+            id=r["id"],
+            slug=r["slug"],
+            columna_csv=r["columna_csv"],
+            descripcion=r["descripcion"],
+            unidad=r["unidad"],
+            desde_fecha=r["desde_fecha"],
+            orden_display=r["orden_display"],
+            notas=r["notas"],
+        )
+        for r in rows
+    ]
+
+    return MetricasCuentaResponse(
+        n=len(metricas),
+        metricas=metricas,
+        caveats=[CAVEAT_CUENTA_BIGINT, CAVEAT_CUENTA_DESDE_FECHA, CAVEAT_CUENTA_NO_COMMERCIAL],
+    )
+
+
+@router.get(
+    "/cuentas/serie",
+    response_model=CuentaSerieResponse,
+    summary="Serie temporal: métrica de cuenta por (AFORE × MÉTRICA)",
+    description=(
+        "Retorna serie mensual de una métrica operacional para una afore commercial. "
+        "Cobertura por métrica (desde_fecha): 1997-12+ (core), 2001-06+ (asignados), "
+        "2012-01+ (subdivisiones bm/siefores), 2005-08+ (independientes/issste), "
+        "2024-09+ (cuentas_inhabilitadas reforma 2024). Para etiquetas no-commercial "
+        "(total_sar, bienestar_010, prestadora_de_servicios) usar /cuentas/sistema."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_cuenta_serie(
+    request: Request,
+    afore_codigo: str = Query(..., description="codigo en consar.afores (e.g. xxi_banorte, profuturo)"),
+    metrica: str = Query(..., description="slug en consar.cat_metrica_cuenta (e.g. trabajadores_imss, total_cuentas_afores)"),
+) -> CuentaSerieResponse:
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_CUENTA_SERIE_META),
+            {"afore_codigo": afore_codigo, "metrica_slug": metrica},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"afore_codigo={afore_codigo!r} o metrica={metrica!r} no existe (consultar /metricas-cuenta)",
+            )
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_CUENTA_SERIE),
+            {"afore_codigo": afore_codigo, "metrica_slug": metrica},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"sin datos para ({afore_codigo}, {metrica}). "
+                f"Cobertura desde {meta['metrica_desde_fecha']} (ver desde_fecha en /metricas-cuenta). "
+                f"Algunas afores comerciales no operaron desde 1997 (e.g. azteca, coppel, invercap)."
+            ),
+        )
+
+    serie = [CuentaPunto(fecha=r["fecha"], valor=r["valor"]) for r in rows]
+
+    caveats = [CAVEAT_CUENTA_BIGINT, CAVEAT_CUENTA_DESDE_FECHA]
+    if metrica == "cuentas_inhabilitadas":
+        caveats.append(CAVEAT_CUENTA_IDENTIDAD_SAR)
+
+    return CuentaSerieResponse(
+        afore=CuentaAforeRef(
+            codigo=meta["afore_codigo"],
+            nombre_corto=meta["afore_nombre_corto"],
+            tipo_pension=meta["afore_tipo_pension"],
+        ),
+        metrica=CuentaMetricaRef(
+            slug=meta["metrica_slug"],
+            descripcion=meta["metrica_descripcion"],
+            unidad=meta["metrica_unidad"],
+            desde_fecha=meta["metrica_desde_fecha"],
+        ),
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        serie=serie,
+        caveats=caveats,
+    )
+
+
+@router.get(
+    "/cuentas/snapshot",
+    response_model=CuentaSnapshotResponse,
+    summary="Snapshot mensual: matriz (AFORE × MÉTRICA) en una fecha",
+    description=(
+        "Retorna para una fecha todas las tuplas (afore commercial, métrica) con su valor. "
+        "Útil para dashboards comparativos de operación administrativa. "
+        "Cobertura 1997-12 → 2025-06 (algunas afores no operaron desde 1997)."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_cuenta_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01"),
+) -> CuentaSnapshotResponse:
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(
+            text(SQL_CUENTA_SNAPSHOT),
+            {"fecha": d},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para fecha={d.isoformat()} (cobertura 1997-12 → 2025-06)",
+        )
+
+    filas = [
+        CuentaSnapshotRow(
+            afore_codigo=r["afore_codigo"],
+            afore_nombre_corto=r["afore_nombre_corto"],
+            metrica_slug=r["metrica_slug"],
+            metrica_descripcion=r["metrica_descripcion"],
+            valor=r["valor"],
+        )
+        for r in rows
+    ]
+
+    return CuentaSnapshotResponse(
+        fecha=d,
+        n_filas=len(filas),
+        filas=filas,
+        caveats=[CAVEAT_CUENTA_BIGINT, CAVEAT_CUENTA_DESDE_FECHA, CAVEAT_CUENTA_NO_COMMERCIAL],
+    )
+
+
+@router.get(
+    "/cuentas/sistema",
+    response_model=CuentaSistemaResponse,
+    summary="Serie sistema: 3 etiquetas no-commercial (total SAR + bienestar + prestadora)",
+    description=(
+        "Retorna serie temporal de las 3 etiquetas no-commercial agrupadas: "
+        "total_cuentas_sar (sistema_total), cuentas_bienestar_010 (sistema_categoria_especial), "
+        "prestadora_de_servicios (administrativa_especial). Permite componer la identidad "
+        "SAR triple-capa en frontend. Cada etiqueta reporta UNA métrica específica: "
+        "total_cuentas_sar reporta total_cuentas_sar; cuentas_bienestar_010 reporta "
+        "cuentas_bienestar_010; prestadora_de_servicios reporta cuentas_inhabilitadas."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_cuenta_sistema(
+    request: Request,
+    metrica: str = Query(..., description="slug en consar.cat_metrica_cuenta (e.g. total_cuentas_sar, cuentas_bienestar_010, cuentas_inhabilitadas)"),
+) -> CuentaSistemaResponse:
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_CUENTA_SISTEMA_META),
+            {"metrica_slug": metrica},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(status_code=404, detail=f"metrica={metrica!r} no existe (consultar /metricas-cuenta)")
+
+        etiquetas_rows = (await conn.execute(text(SQL_CUENTA_SISTEMA_ETIQUETAS))).mappings().all()
+
+        serie_rows = (await conn.execute(
+            text(SQL_CUENTA_SISTEMA_SERIE),
+            {"metrica_slug": metrica},
+        )).mappings().all()
+
+    if not serie_rows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"sin datos no-commercial para metrica={metrica}. "
+                f"Solo 3 métricas tienen datos en /cuentas/sistema: "
+                f"total_cuentas_sar (sentinel SAR), cuentas_bienestar_010 (reforma 2024), "
+                f"cuentas_inhabilitadas (sólo prestadora reporta esta como agg)."
+            ),
+        )
+
+    etiquetas = [
+        CuentaSistemaEtiquetaRef(slug=r["slug"], nombre_display=r["nombre_display"], categoria=r["categoria"])
+        for r in etiquetas_rows
+    ]
+
+    metricas_ref = [
+        CuentaMetricaRef(
+            slug=meta_rows[0]["slug"],
+            descripcion=meta_rows[0]["descripcion"],
+            unidad=meta_rows[0]["unidad"],
+            desde_fecha=meta_rows[0]["desde_fecha"],
+        )
+    ]
+
+    serie = [
+        CuentaSistemaPunto(
+            fecha=r["fecha"],
+            etiqueta_slug=r["etiqueta_slug"],
+            etiqueta_categoria=r["etiqueta_categoria"],
+            metrica_slug=r["metrica_slug"],
+            valor=r["valor"],
+        )
+        for r in serie_rows
+    ]
+
+    return CuentaSistemaResponse(
+        n_puntos=len(serie),
+        etiquetas=etiquetas,
+        metricas=metricas_ref,
+        serie=serie,
+        caveats=[CAVEAT_CUENTA_BIGINT, CAVEAT_CUENTA_NO_COMMERCIAL, CAVEAT_CUENTA_IDENTIDAD_SAR],
     )
