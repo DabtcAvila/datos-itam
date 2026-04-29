@@ -216,3 +216,50 @@ class ComisionSnapshotResponse(BaseModel):
     maxima_pct: float
     afores: list[ComisionSnapshotRow]
     caveats: list[str]
+
+
+# ---------------------------------------------------------------------
+# 11. /flujos/serie + /flujos/snapshot   (S16 — dataset #04)
+# ---------------------------------------------------------------------
+
+
+class FlujoPunto(BaseModel):
+    fecha: date
+    montos_entradas: float
+    montos_salidas: float
+    flujo_neto: float
+
+
+class FlujoAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class FlujoSerieResponse(BaseModel):
+    afore: Optional[FlujoAforeRef]  # None → suma nacional
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[FlujoPunto]
+    caveats: list[str]
+
+
+class FlujoSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    tipo_pension: str
+    montos_entradas: float
+    montos_salidas: float
+    flujo_neto: float
+
+
+class FlujoSnapshotResponse(BaseModel):
+    fecha: date
+    unit: str
+    n_afores_reportando: int
+    sistema_entradas_mm: float
+    sistema_salidas_mm: float
+    sistema_flujo_neto_mm: float
+    afores: list[FlujoSnapshotRow]
+    caveats: list[str]

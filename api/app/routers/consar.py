@@ -27,6 +27,11 @@ from app.schemas.consar import (
     ComisionSerieResponse,
     ComisionSnapshotResponse,
     ComisionSnapshotRow,
+    FlujoAforeRef,
+    FlujoPunto,
+    FlujoSerieResponse,
+    FlujoSnapshotResponse,
+    FlujoSnapshotRow,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -769,4 +774,162 @@ async def get_comisiones_snapshot(
             for r in rows
         ],
         caveats=[CAVEAT_COMISION_REFORMA, CAVEAT_COMISION_BIENESTAR],
+    )
+
+
+# ---------------------------------------------------------------------
+# 11. GET /consar/flujos/serie — serie temporal entradas/salidas (S16, #04)
+# ---------------------------------------------------------------------
+
+CAVEAT_FLUJO_BIENESTAR = (
+    "Pensión Bienestar (FPB9) NO reporta en este dataset (régimen administrativo diferenciado). "
+    "Solo 10 de las 11 AFOREs aparecen en flujos."
+)
+
+CAVEAT_FLUJO_COBERTURA = (
+    "Cobertura empieza 2009-01-01. CSV original es rectangular sin celdas faltantes "
+    "(todas las afores reportan en todos los meses dentro de la cobertura)."
+)
+
+SQL_FLUJO_AFORE_META = """
+SELECT codigo, nombre_corto, tipo_pension
+FROM consar.afores
+WHERE codigo = :codigo
+"""
+
+SQL_FLUJO_SERIE = """
+SELECT f.fecha,
+       SUM(f.montos_entradas)::float AS montos_entradas,
+       SUM(f.montos_salidas)::float  AS montos_salidas
+FROM consar.flujo_recurso f
+JOIN consar.afores a ON a.id = f.afore_id
+WHERE (CAST(:afore_codigo AS text) IS NULL OR a.codigo = :afore_codigo)
+  AND f.fecha >= :desde
+  AND f.fecha <= :hasta
+GROUP BY f.fecha
+ORDER BY f.fecha
+"""
+
+
+@router.get(
+    "/flujos/serie",
+    response_model=FlujoSerieResponse,
+    summary="Serie temporal: entradas/salidas mensuales por AFORE (o sistema)",
+    description=(
+        "Retorna serie mensual de aportaciones brutas (`montos_entradas`) y retiros "
+        "(`montos_salidas`) en mm MXN corrientes. Si `afore_codigo` se omite, suma "
+        "sobre todas las AFOREs reportantes (sistema). Cobertura 2009-01-01 → 2025-06-01. "
+        "`flujo_neto = montos_entradas - montos_salidas` (positivo = AFORE captando neto)."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_flujos_serie(
+    request: Request,
+    afore_codigo: Optional[str] = Query(None, description="Código AFORE opcional (e.g. 'xxi_banorte')"),
+    desde: Optional[str] = Query(None, description="YYYY-MM o YYYY-MM-01 (default 2009-01)"),
+    hasta: Optional[str] = Query(None, description="YYYY-MM o YYYY-MM-01 (default 2025-06)"),
+) -> FlujoSerieResponse:
+    d_desde = _parse_fecha(desde) if desde else date(2009, 1, 1)
+    d_hasta = _parse_fecha(hasta) if hasta else date(2025, 6, 1)
+    if d_desde > d_hasta:
+        raise HTTPException(status_code=422, detail="'desde' debe ser <= 'hasta'")
+
+    async with engine.connect() as conn:
+        afore_row = None
+        if afore_codigo is not None:
+            afore_row = (await conn.execute(text(SQL_FLUJO_AFORE_META), {"codigo": afore_codigo})).mappings().one_or_none()
+            if afore_row is None:
+                raise HTTPException(status_code=404, detail=f"afore '{afore_codigo}' no existe")
+
+        rows = (await conn.execute(
+            text(SQL_FLUJO_SERIE),
+            {"afore_codigo": afore_codigo, "desde": d_desde, "hasta": d_hasta},
+        )).mappings().all()
+
+    serie = [
+        FlujoPunto(
+            fecha=r["fecha"],
+            montos_entradas=round(r["montos_entradas"], 4),
+            montos_salidas=round(r["montos_salidas"], 4),
+            flujo_neto=round(r["montos_entradas"] - r["montos_salidas"], 4),
+        )
+        for r in rows
+    ]
+
+    return FlujoSerieResponse(
+        afore=FlujoAforeRef(**dict(afore_row)) if afore_row else None,
+        unit="millones de pesos MXN corrientes",
+        n_puntos=len(serie),
+        rango=SerieRango(desde=d_desde, hasta=d_hasta),
+        serie=serie,
+        caveats=[CAVEAT_FLUJO_COBERTURA, CAVEAT_FLUJO_BIENESTAR],
+    )
+
+
+# ---------------------------------------------------------------------
+# 12. GET /consar/flujos/snapshot?fecha=YYYY-MM (S16, #04)
+# ---------------------------------------------------------------------
+
+SQL_FLUJO_SNAPSHOT = """
+SELECT a.codigo AS afore_codigo,
+       a.nombre_corto AS afore_nombre_corto,
+       a.tipo_pension,
+       a.orden_display,
+       COALESCE(f.montos_entradas, 0)::float AS montos_entradas,
+       COALESCE(f.montos_salidas,  0)::float AS montos_salidas
+FROM consar.afores a
+LEFT JOIN consar.flujo_recurso f
+       ON f.afore_id = a.id AND f.fecha = :fecha
+WHERE a.codigo <> 'pension_bienestar'
+ORDER BY a.orden_display
+"""
+
+
+@router.get(
+    "/flujos/snapshot",
+    response_model=FlujoSnapshotResponse,
+    summary="Snapshot mensual: entradas/salidas por AFORE en una fecha",
+    description=(
+        "Retorna para la fecha indicada (YYYY-MM o YYYY-MM-01) los flujos por cada "
+        "AFORE reportante + totales del sistema. Cobertura 2009-01 → 2025-06."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_flujos_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01"),
+) -> FlujoSnapshotResponse:
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_FLUJO_SNAPSHOT), {"fecha": d})).mappings().all()
+
+    reporting = [r for r in rows if (r["montos_entradas"] or 0) > 0 or (r["montos_salidas"] or 0) > 0]
+    if not reporting:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos para fecha={d.isoformat()} (cobertura: 2009-01 a 2025-06)",
+        )
+
+    sis_ent = sum(r["montos_entradas"] for r in reporting)
+    sis_sal = sum(r["montos_salidas"] for r in reporting)
+
+    return FlujoSnapshotResponse(
+        fecha=d,
+        unit="millones de pesos MXN corrientes",
+        n_afores_reportando=len(reporting),
+        sistema_entradas_mm=round(sis_ent, 4),
+        sistema_salidas_mm=round(sis_sal, 4),
+        sistema_flujo_neto_mm=round(sis_ent - sis_sal, 4),
+        afores=[
+            FlujoSnapshotRow(
+                afore_codigo=r["afore_codigo"],
+                afore_nombre_corto=r["afore_nombre_corto"],
+                tipo_pension=r["tipo_pension"],
+                montos_entradas=round(r["montos_entradas"], 4),
+                montos_salidas=round(r["montos_salidas"], 4),
+                flujo_neto=round(r["montos_entradas"] - r["montos_salidas"], 4),
+            )
+            for r in rows
+        ],
+        caveats=[CAVEAT_FLUJO_COBERTURA, CAVEAT_FLUJO_BIENESTAR],
     )
