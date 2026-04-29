@@ -413,3 +413,79 @@ class ActivoNetoAggregadoResponse(BaseModel):
     rango: SerieRango
     serie: list[ActivoNetoAggPunto]
     caveats: list[str]
+
+
+# ==============================
+# Rendimiento (S16 Sub-fase 5 — dataset #10)
+# ==============================
+
+class RendimientoAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class RendimientoSieforeRef(BaseModel):
+    slug: str
+    nombre: str
+    categoria: str
+
+
+class RendimientoPunto(BaseModel):
+    fecha: date
+    rendimiento_pct: float
+
+
+class RendimientoMappingMeta(BaseModel):
+    """Provenance del mapping para pares (afore × siefore) decompuestos
+    desde sub-variants en #10 (consar.afore_siefore_alias fuente_csv='#10')."""
+    is_subvariant_decomposed: bool
+    mapping_validated: Optional[bool]
+    validated_via: Optional[str]
+
+
+class RendimientoSerieResponse(BaseModel):
+    afore: RendimientoAforeRef
+    siefore: RendimientoSieforeRef
+    plazo: str
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[RendimientoPunto]
+    mapping_meta: RendimientoMappingMeta
+    caveats: list[str]
+
+
+class RendimientoSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    siefore_slug: str
+    siefore_nombre: str
+    siefore_categoria: str
+    rendimiento_pct: float
+
+
+class RendimientoSnapshotResponse(BaseModel):
+    fecha: date
+    plazo: str
+    unit: str
+    n_filas: int
+    rendimiento_min: float
+    rendimiento_max: float
+    filas: list[RendimientoSnapshotRow]
+    caveats: list[str]
+
+
+class RendimientoSistemaPunto(BaseModel):
+    fecha: date
+    rendimiento_pct: float
+
+
+class RendimientoSistemaResponse(BaseModel):
+    siefore: RendimientoSieforeRef
+    plazo: str
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[RendimientoSistemaPunto]
+    caveats: list[str]

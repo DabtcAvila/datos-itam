@@ -49,6 +49,15 @@ from app.schemas.consar import (
     ActivoNetoSnapshotResponse,
     ActivoNetoAggPunto,
     ActivoNetoAggregadoResponse,
+    RendimientoAforeRef,
+    RendimientoSieforeRef,
+    RendimientoPunto,
+    RendimientoMappingMeta,
+    RendimientoSerieResponse,
+    RendimientoSnapshotRow,
+    RendimientoSnapshotResponse,
+    RendimientoSistemaPunto,
+    RendimientoSistemaResponse,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -1459,6 +1468,294 @@ async def get_activo_neto_agregado(
         ),
         categoria=categoria,
         unit="millones de pesos MXN corrientes",
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        serie=serie,
+        caveats=caveats,
+    )
+
+
+# ---------------------------------------------------------------------
+# 16. /rendimientos/*   (S16 Sub-fase 5 — dataset #10, atomic + system-agg)
+# ---------------------------------------------------------------------
+
+CAVEAT_RENDIMIENTO_UNIDAD = (
+    "Rendimientos en porcentaje anualizado neto reportado por CONSAR. "
+    "Plazos 12_meses/24_meses/36_meses/5_anios son ventanas rolling; historico es "
+    "rendimiento histórico desde inicio del SAR (sólo publicado para sb 60-64)."
+)
+
+CAVEAT_RENDIMIENTO_HISTORICO = (
+    "plazo='historico' sólo se publica para sb 60-64 (siefore generacional principal post-reforma 2019). "
+    "Las otras 11 siefores no tienen serie histórica — coherente con la introducción del régimen "
+    "generacional en la reforma SB 2019; cohortes 55-59 y 65-69+ no existían bajo el régimen previo."
+)
+
+CAVEAT_RENDIMIENTO_DECOMPOSITION = (
+    "Sub-variants concat de #10 (banamex(siav2), profuturo(sac/siav), sura(siav/siav1/siav2), "
+    "xxi-banorte(siav/sps1..sps10) — 17 strings) descomponen a tuplas atómicas (afore × siefore) "
+    "vía consar.afore_siefore_alias (fuente_csv='#10'). 15 de 17 docs-confirmed; sura(siav2) y "
+    "(siav1) inferencia lexicográfica con bijection con #07 (mapping_validated expuesto)."
+)
+
+CAVEAT_RENDIMIENTO_SIS = (
+    "rendimiento_sis es agregado INTER-afore (sistema completo): promedio ponderado CONSAR "
+    "sobre todas las afores que ofrecen cada siefore. Distinto de activo_neto_agg de #07 "
+    "que es agregado INTRA-afore (cada afore reporta totales propios)."
+)
+
+CAVEAT_RENDIMIENTO_RANGE = (
+    "Range observado en cobertura 2019-12 → 2025-06: [-11.4729%, +27.1712%]. "
+    "Negativos representan caídas reales del valor de los recursos administrados."
+)
+
+SOURCE_RENDIMIENTO = (
+    "CONSAR vía datos.gob.mx (CC-BY-4.0) — datasets/10_rendimientos_precio_bolsa — "
+    "cobertura 2019-12 → 2025-06 (67 fechas mensuales × 5 plazos)."
+)
+
+PLAZOS_VALIDOS = ("12_meses", "24_meses", "36_meses", "5_anios", "historico")
+
+
+SQL_RENDIMIENTO_SERIE = """
+SELECT r.fecha, r.rendimiento_pct::float AS rendimiento_pct
+FROM consar.rendimiento r
+JOIN consar.afores af ON af.id = r.afore_id
+JOIN consar.cat_siefore cs ON cs.id = r.siefore_id
+WHERE af.codigo = :afore_codigo AND cs.slug = :siefore_slug AND r.plazo = :plazo
+ORDER BY r.fecha
+"""
+
+SQL_RENDIMIENTO_SERIE_META = """
+SELECT af.codigo AS afore_codigo, af.nombre_corto AS afore_nombre_corto,
+       af.tipo_pension AS afore_tipo_pension,
+       cs.slug AS siefore_slug, cs.nombre AS siefore_nombre, cs.categoria AS siefore_categoria,
+       (SELECT mapping_validated FROM consar.afore_siefore_alias asa
+         WHERE asa.afore_id = af.id AND asa.siefore_id = cs.id AND asa.fuente_csv = '#10'
+         LIMIT 1) AS asa_validated,
+       (SELECT validated_via FROM consar.afore_siefore_alias asa
+         WHERE asa.afore_id = af.id AND asa.siefore_id = cs.id AND asa.fuente_csv = '#10'
+         LIMIT 1) AS asa_validated_via
+FROM consar.afores af, consar.cat_siefore cs
+WHERE af.codigo = :afore_codigo AND cs.slug = :siefore_slug
+"""
+
+SQL_RENDIMIENTO_SNAPSHOT = """
+SELECT af.codigo AS afore_codigo, af.nombre_corto AS afore_nombre_corto,
+       cs.slug AS siefore_slug, cs.nombre AS siefore_nombre, cs.categoria AS siefore_categoria,
+       r.rendimiento_pct::float AS rendimiento_pct
+FROM consar.rendimiento r
+JOIN consar.afores af ON af.id = r.afore_id
+JOIN consar.cat_siefore cs ON cs.id = r.siefore_id
+WHERE r.fecha = :fecha AND r.plazo = :plazo
+ORDER BY af.orden_display, cs.orden_display
+"""
+
+SQL_RENDIMIENTO_SIS = """
+SELECT r.fecha, r.rendimiento_pct::float AS rendimiento_pct
+FROM consar.rendimiento_sis r
+JOIN consar.cat_siefore cs ON cs.id = r.siefore_id
+WHERE cs.slug = :siefore_slug AND r.plazo = :plazo
+ORDER BY r.fecha
+"""
+
+SQL_RENDIMIENTO_SIS_META = """
+SELECT slug, nombre, categoria
+FROM consar.cat_siefore WHERE slug = :siefore_slug
+"""
+
+
+@router.get(
+    "/rendimientos/serie",
+    response_model=RendimientoSerieResponse,
+    summary="Serie temporal: rendimiento atómico por (AFORE × SIEFORE × PLAZO)",
+    description=(
+        "Retorna serie mensual de rendimiento (% anualizado neto) para una tupla "
+        "(afore, siefore, plazo). Si la tupla proviene de un sub-variant concat decompuesto, "
+        "expone mapping_validated y validated_via. Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_rendimiento_serie(
+    request: Request,
+    afore_codigo: str = Query(..., description="codigo en consar.afores (e.g. xxi_banorte, profuturo)"),
+    siefore_slug: str = Query(..., description="slug en consar.cat_siefore (e.g. sb 60-64, sps3)"),
+    plazo: str = Query(..., description="12_meses | 24_meses | 36_meses | 5_anios | historico"),
+) -> RendimientoSerieResponse:
+    if plazo not in PLAZOS_VALIDOS:
+        raise HTTPException(status_code=422, detail=f"plazo inválido: {plazo!r}. Válidos: {list(PLAZOS_VALIDOS)}")
+
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_RENDIMIENTO_SERIE_META),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"afore_codigo={afore_codigo!r} o siefore_slug={siefore_slug!r} no existe",
+            )
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_RENDIMIENTO_SERIE),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug, "plazo": plazo},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para ({afore_codigo}, {siefore_slug}, {plazo}). plazo='historico' sólo aplica a sb 60-64.",
+        )
+
+    serie = [RendimientoPunto(fecha=r["fecha"], rendimiento_pct=r["rendimiento_pct"]) for r in rows]
+
+    asa_validated = meta["asa_validated"]
+    is_subvariant = asa_validated is not None
+    mapping_meta = RendimientoMappingMeta(
+        is_subvariant_decomposed=is_subvariant,
+        mapping_validated=asa_validated,
+        validated_via=meta["asa_validated_via"],
+    )
+
+    caveats = [CAVEAT_RENDIMIENTO_UNIDAD, CAVEAT_RENDIMIENTO_DECOMPOSITION]
+    if plazo == "historico":
+        caveats.insert(1, CAVEAT_RENDIMIENTO_HISTORICO)
+
+    return RendimientoSerieResponse(
+        afore=RendimientoAforeRef(
+            codigo=meta["afore_codigo"],
+            nombre_corto=meta["afore_nombre_corto"],
+            tipo_pension=meta["afore_tipo_pension"],
+        ),
+        siefore=RendimientoSieforeRef(
+            slug=meta["siefore_slug"],
+            nombre=meta["siefore_nombre"],
+            categoria=meta["siefore_categoria"],
+        ),
+        plazo=plazo,
+        unit="porcentaje anualizado neto",
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        serie=serie,
+        mapping_meta=mapping_meta,
+        caveats=caveats,
+    )
+
+
+@router.get(
+    "/rendimientos/snapshot",
+    response_model=RendimientoSnapshotResponse,
+    summary="Snapshot mensual: matriz (AFORE × SIEFORE) de rendimiento para un plazo",
+    description=(
+        "Retorna para una fecha y plazo todas las tuplas (afore, siefore) con sus rendimientos. "
+        "Útil para dashboards comparativos de desempeño. Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_rendimiento_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01"),
+    plazo: str = Query(..., description="12_meses | 24_meses | 36_meses | 5_anios | historico"),
+) -> RendimientoSnapshotResponse:
+    if plazo not in PLAZOS_VALIDOS:
+        raise HTTPException(status_code=422, detail=f"plazo inválido: {plazo!r}. Válidos: {list(PLAZOS_VALIDOS)}")
+
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(
+            text(SQL_RENDIMIENTO_SNAPSHOT),
+            {"fecha": d, "plazo": plazo},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para fecha={d.isoformat()} plazo={plazo} (cobertura 2019-12 → 2025-06; historico solo sb 60-64)",
+        )
+
+    filas = [
+        RendimientoSnapshotRow(
+            afore_codigo=r["afore_codigo"],
+            afore_nombre_corto=r["afore_nombre_corto"],
+            siefore_slug=r["siefore_slug"],
+            siefore_nombre=r["siefore_nombre"],
+            siefore_categoria=r["siefore_categoria"],
+            rendimiento_pct=r["rendimiento_pct"],
+        )
+        for r in rows
+    ]
+
+    caveats = [CAVEAT_RENDIMIENTO_UNIDAD, CAVEAT_RENDIMIENTO_DECOMPOSITION]
+    if plazo == "historico":
+        caveats.insert(1, CAVEAT_RENDIMIENTO_HISTORICO)
+
+    return RendimientoSnapshotResponse(
+        fecha=d,
+        plazo=plazo,
+        unit="porcentaje anualizado neto",
+        n_filas=len(filas),
+        rendimiento_min=min(f.rendimiento_pct for f in filas),
+        rendimiento_max=max(f.rendimiento_pct for f in filas),
+        filas=filas,
+        caveats=caveats,
+    )
+
+
+@router.get(
+    "/rendimientos/sistema",
+    response_model=RendimientoSistemaResponse,
+    summary="Serie temporal: rendimiento agregado del sistema (INTER-afore) por SIEFORE × PLAZO",
+    description=(
+        "Retorna serie mensual del rendimiento agregado CONSAR del sistema (promedio ponderado "
+        "sobre todas las afores) para una siefore y plazo. Distinto de activo_neto_agg que es "
+        "agregado INTRA-afore. Para 'adicionales' usar siefore_slug='agregado_adicionales'. "
+        "Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_rendimiento_sistema(
+    request: Request,
+    siefore_slug: str = Query(..., description="slug en consar.cat_siefore (e.g. sb 60-64, agregado_adicionales)"),
+    plazo: str = Query(..., description="12_meses | 24_meses | 36_meses | 5_anios | historico"),
+) -> RendimientoSistemaResponse:
+    if plazo not in PLAZOS_VALIDOS:
+        raise HTTPException(status_code=422, detail=f"plazo inválido: {plazo!r}. Válidos: {list(PLAZOS_VALIDOS)}")
+
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_RENDIMIENTO_SIS_META),
+            {"siefore_slug": siefore_slug},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(status_code=404, detail=f"siefore_slug={siefore_slug!r} no existe")
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_RENDIMIENTO_SIS),
+            {"siefore_slug": siefore_slug, "plazo": plazo},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para ({siefore_slug}, {plazo}). plazo='historico' sólo aplica a sb 60-64.",
+        )
+
+    serie = [RendimientoSistemaPunto(fecha=r["fecha"], rendimiento_pct=r["rendimiento_pct"]) for r in rows]
+
+    caveats = [CAVEAT_RENDIMIENTO_UNIDAD, CAVEAT_RENDIMIENTO_SIS]
+    if plazo == "historico":
+        caveats.insert(1, CAVEAT_RENDIMIENTO_HISTORICO)
+
+    return RendimientoSistemaResponse(
+        siefore=RendimientoSieforeRef(
+            slug=meta["slug"],
+            nombre=meta["nombre"],
+            categoria=meta["categoria"],
+        ),
+        plazo=plazo,
+        unit="porcentaje anualizado neto",
         n_puntos=len(serie),
         rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
         serie=serie,
