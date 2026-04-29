@@ -58,6 +58,16 @@ from app.schemas.consar import (
     RendimientoSnapshotResponse,
     RendimientoSistemaPunto,
     RendimientoSistemaResponse,
+    MetricaSensibilidadRow,
+    MetricasSensibilidadResponse,
+    MedidaAforeRef,
+    MedidaSieforeRef,
+    MedidaMetricaRef,
+    MedidaPunto,
+    MedidaMappingMeta,
+    MedidaSerieResponse,
+    MedidaSnapshotRow,
+    MedidaSnapshotResponse,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -1759,5 +1769,280 @@ async def get_rendimiento_sistema(
         n_puntos=len(serie),
         rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
         serie=serie,
+        caveats=caveats,
+    )
+
+
+# ---------------------------------------------------------------------
+# 17. /metricas-sensibilidad + /medidas/*   (S16 Sub-fase 6 — dataset #03)
+# ---------------------------------------------------------------------
+
+CAVEAT_MEDIDA_PIVOT = (
+    "Long-format derivado de pivot wide→long del CSV oficial #03 (7,840 wide rows × 7 métricas → "
+    "46,657 long rows). Skip-empties: solo se materializa una fila cuando valor != '' en CSV. "
+    "NULLs no se almacenan; consultar con metrica_slug específica para obtener la cobertura real."
+)
+
+CAVEAT_MEDIDA_DECOMPOSITION = (
+    "Sub-variants concat (banamex(siav2), profuturo(sac/siav), sura(siav/siav1/siav2), "
+    "xxi-banorte(siav/sps1..sps10) — 17 strings idénticos a #10) decompuestos vía "
+    "consar.afore_siefore_alias (reuso fuente_csv='#10', mismo mapping lógico). El campo "
+    "siefore='siefores adicionales' del CSV se IGNORA en sub-variants — el siefore real "
+    "proviene del decompose."
+)
+
+CAVEAT_MEDIDA_PID_CORRECCION = (
+    "PID (provision_exposicion_instrumentos_derivados) etiquetada como 'pct' del activo expuesto, "
+    "NO 'monto' absoluto. Corrección empírica vs DDL académico ds3 que asume 'monto'. Validación: "
+    "Coppel/Inbursa/PensionISSSTE = 0% siempre (no operan derivados); range observado [0, 1.75]% "
+    "coherente con cap regulatorio CONSAR para exposición a derivados."
+)
+
+CAVEAT_MEDIDA_SUBVARIANT_METRICAS = (
+    "Sub-variants concat (productos adicionales SAC/SIAV/SPS) NO reportan tracking_error, "
+    "escenarios_var ni PID. Decisión arquitectural CONSAR: estas 3 métricas NO aplican a "
+    "productos no-básicos (1,139 NULLs por métrica × 3 = 3,417 NULLs estructurales)."
+)
+
+CAVEAT_MEDIDA_ESCENARIOS_SPARSITY = (
+    "escenarios_var tiene 76% sparsity incluso en canonical (1,901 / 6,701 reportados). "
+    "Métrica esporádica que CONSAR sólo publica cuando hay stress-test reciente."
+)
+
+SOURCE_MEDIDA = (
+    "CONSAR vía datos.gob.mx (CC-BY-4.0) — datasets/03_medidas — cobertura 2019-12 → 2025-06 "
+    "(67 fechas mensuales × 7 métricas regulatorias)."
+)
+
+
+SQL_METRICAS_CATALOGO = """
+SELECT id, slug, columna_csv, descripcion, unidad, orden_display
+FROM consar.cat_metrica_sensibilidad
+ORDER BY orden_display
+"""
+
+SQL_MEDIDA_SERIE = """
+SELECT ms.fecha, ms.valor::float AS valor
+FROM consar.medida_sensibilidad ms
+JOIN consar.afores af ON af.id = ms.afore_id
+JOIN consar.cat_siefore cs ON cs.id = ms.siefore_id
+JOIN consar.cat_metrica_sensibilidad cm ON cm.id = ms.metrica_id
+WHERE af.codigo = :afore_codigo AND cs.slug = :siefore_slug AND cm.slug = :metrica_slug
+ORDER BY ms.fecha
+"""
+
+SQL_MEDIDA_SERIE_META = """
+SELECT af.codigo AS afore_codigo, af.nombre_corto AS afore_nombre_corto,
+       af.tipo_pension AS afore_tipo_pension,
+       cs.slug AS siefore_slug, cs.nombre AS siefore_nombre, cs.categoria AS siefore_categoria,
+       cm.slug AS metrica_slug, cm.descripcion AS metrica_descripcion, cm.unidad AS metrica_unidad,
+       (SELECT mapping_validated FROM consar.afore_siefore_alias asa
+         WHERE asa.afore_id = af.id AND asa.siefore_id = cs.id AND asa.fuente_csv = '#10'
+         LIMIT 1) AS asa_validated,
+       (SELECT validated_via FROM consar.afore_siefore_alias asa
+         WHERE asa.afore_id = af.id AND asa.siefore_id = cs.id AND asa.fuente_csv = '#10'
+         LIMIT 1) AS asa_validated_via
+FROM consar.afores af, consar.cat_siefore cs, consar.cat_metrica_sensibilidad cm
+WHERE af.codigo = :afore_codigo AND cs.slug = :siefore_slug AND cm.slug = :metrica_slug
+"""
+
+SQL_MEDIDA_SNAPSHOT = """
+SELECT af.codigo AS afore_codigo, af.nombre_corto AS afore_nombre_corto,
+       cs.slug AS siefore_slug, cs.nombre AS siefore_nombre, cs.categoria AS siefore_categoria,
+       ms.valor::float AS valor
+FROM consar.medida_sensibilidad ms
+JOIN consar.afores af ON af.id = ms.afore_id
+JOIN consar.cat_siefore cs ON cs.id = ms.siefore_id
+JOIN consar.cat_metrica_sensibilidad cm ON cm.id = ms.metrica_id
+WHERE ms.fecha = :fecha AND cm.slug = :metrica_slug
+ORDER BY af.orden_display, cs.orden_display
+"""
+
+SQL_MEDIDA_SNAPSHOT_META = """
+SELECT slug, descripcion, unidad
+FROM consar.cat_metrica_sensibilidad WHERE slug = :metrica_slug
+"""
+
+
+@router.get(
+    "/metricas-sensibilidad",
+    response_model=MetricasSensibilidadResponse,
+    summary="Catálogo descubrible: 7 métricas de sensibilidad regulatoria",
+    description=(
+        "Retorna las 7 métricas de sensibilidad regulatoria reportadas en dataset #03 "
+        "(coef_liquidez, dcvar, tracking_error, escenarios_var, ppp, pid, var) con su unidad "
+        "y descripción. Útil para clientes que necesitan descubrir slugs válidos antes de "
+        "consultar /medidas/serie o /medidas/snapshot."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_metricas_sensibilidad(request: Request) -> MetricasSensibilidadResponse:
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_METRICAS_CATALOGO))).mappings().all()
+
+    metricas = [
+        MetricaSensibilidadRow(
+            id=r["id"],
+            slug=r["slug"],
+            columna_csv=r["columna_csv"],
+            descripcion=r["descripcion"],
+            unidad=r["unidad"],
+            orden_display=r["orden_display"],
+        )
+        for r in rows
+    ]
+
+    return MetricasSensibilidadResponse(
+        n=len(metricas),
+        metricas=metricas,
+        caveats=[CAVEAT_MEDIDA_PID_CORRECCION, CAVEAT_MEDIDA_SUBVARIANT_METRICAS, CAVEAT_MEDIDA_ESCENARIOS_SPARSITY],
+    )
+
+
+@router.get(
+    "/medidas/serie",
+    response_model=MedidaSerieResponse,
+    summary="Serie temporal: medida regulatoria por (AFORE × SIEFORE × MÉTRICA)",
+    description=(
+        "Retorna serie mensual de una métrica de sensibilidad regulatoria para una tupla "
+        "(afore, siefore, métrica). Si la tupla proviene de un sub-variant decompuesto, "
+        "expone mapping_validated y validated_via. Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_medida_serie(
+    request: Request,
+    afore_codigo: str = Query(..., description="codigo en consar.afores (e.g. xxi_banorte, profuturo)"),
+    siefore_slug: str = Query(..., description="slug en consar.cat_siefore (e.g. sb 60-64, sps3)"),
+    metrica: str = Query(..., description="slug en consar.cat_metrica_sensibilidad (e.g. var, ppp, pid)"),
+) -> MedidaSerieResponse:
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_MEDIDA_SERIE_META),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug, "metrica_slug": metrica},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"afore_codigo={afore_codigo!r}, siefore_slug={siefore_slug!r} o metrica={metrica!r} no existe",
+            )
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_MEDIDA_SERIE),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug, "metrica_slug": metrica},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"sin datos para ({afore_codigo}, {siefore_slug}, {metrica}). "
+                f"Sub-variants no reportan tracking_error/escenarios_var/pid. "
+                f"escenarios_var es esporádica (76% sparsity incluso en canonical)."
+            ),
+        )
+
+    serie = [MedidaPunto(fecha=r["fecha"], valor=r["valor"]) for r in rows]
+
+    asa_validated = meta["asa_validated"]
+    is_subvariant = asa_validated is not None
+    mapping_meta = MedidaMappingMeta(
+        is_subvariant_decomposed=is_subvariant,
+        mapping_validated=asa_validated,
+        validated_via=meta["asa_validated_via"],
+    )
+
+    caveats = [CAVEAT_MEDIDA_PIVOT, CAVEAT_MEDIDA_DECOMPOSITION]
+    if metrica == "pid":
+        caveats.append(CAVEAT_MEDIDA_PID_CORRECCION)
+    if metrica == "escenarios_var":
+        caveats.append(CAVEAT_MEDIDA_ESCENARIOS_SPARSITY)
+
+    return MedidaSerieResponse(
+        afore=MedidaAforeRef(
+            codigo=meta["afore_codigo"],
+            nombre_corto=meta["afore_nombre_corto"],
+            tipo_pension=meta["afore_tipo_pension"],
+        ),
+        siefore=MedidaSieforeRef(
+            slug=meta["siefore_slug"],
+            nombre=meta["siefore_nombre"],
+            categoria=meta["siefore_categoria"],
+        ),
+        metrica=MedidaMetricaRef(
+            slug=meta["metrica_slug"],
+            descripcion=meta["metrica_descripcion"],
+            unidad=meta["metrica_unidad"],
+        ),
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        serie=serie,
+        mapping_meta=mapping_meta,
+        caveats=caveats,
+    )
+
+
+@router.get(
+    "/medidas/snapshot",
+    response_model=MedidaSnapshotResponse,
+    summary="Snapshot mensual: matriz (AFORE × SIEFORE) de una métrica para una fecha",
+    description=(
+        "Retorna para una fecha y métrica todas las tuplas (afore, siefore) con su valor. "
+        "Útil para dashboards comparativos de exposición regulatoria. Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_medida_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01"),
+    metrica: str = Query(..., description="slug en consar.cat_metrica_sensibilidad"),
+) -> MedidaSnapshotResponse:
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_MEDIDA_SNAPSHOT_META),
+            {"metrica_slug": metrica},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(status_code=404, detail=f"metrica={metrica!r} no existe (consultar /metricas-sensibilidad)")
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_MEDIDA_SNAPSHOT),
+            {"fecha": d, "metrica_slug": metrica},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para fecha={d.isoformat()} metrica={metrica} (cobertura 2019-12 → 2025-06)",
+        )
+
+    filas = [
+        MedidaSnapshotRow(
+            afore_codigo=r["afore_codigo"],
+            afore_nombre_corto=r["afore_nombre_corto"],
+            siefore_slug=r["siefore_slug"],
+            siefore_nombre=r["siefore_nombre"],
+            siefore_categoria=r["siefore_categoria"],
+            valor=r["valor"],
+        )
+        for r in rows
+    ]
+
+    caveats = [CAVEAT_MEDIDA_PIVOT, CAVEAT_MEDIDA_DECOMPOSITION]
+    if metrica == "pid":
+        caveats.append(CAVEAT_MEDIDA_PID_CORRECCION)
+    if metrica == "escenarios_var":
+        caveats.append(CAVEAT_MEDIDA_ESCENARIOS_SPARSITY)
+
+    return MedidaSnapshotResponse(
+        fecha=d,
+        metrica=MedidaMetricaRef(slug=meta["slug"], descripcion=meta["descripcion"], unidad=meta["unidad"]),
+        n_filas=len(filas),
+        valor_min=min(f.valor for f in filas),
+        valor_max=max(f.valor for f in filas),
+        filas=filas,
         caveats=caveats,
     )

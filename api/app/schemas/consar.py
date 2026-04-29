@@ -489,3 +489,81 @@ class RendimientoSistemaResponse(BaseModel):
     rango: SerieRango
     serie: list[RendimientoSistemaPunto]
     caveats: list[str]
+
+
+# ==============================
+# Medida sensibilidad (S16 Sub-fase 6 — dataset #03)
+# ==============================
+
+class MetricaSensibilidadRow(BaseModel):
+    id: int
+    slug: str
+    columna_csv: str
+    descripcion: str
+    unidad: str
+    orden_display: int
+
+
+class MetricasSensibilidadResponse(BaseModel):
+    n: int
+    metricas: list[MetricaSensibilidadRow]
+    caveats: list[str]
+
+
+class MedidaAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class MedidaSieforeRef(BaseModel):
+    slug: str
+    nombre: str
+    categoria: str
+
+
+class MedidaMetricaRef(BaseModel):
+    slug: str
+    descripcion: str
+    unidad: str
+
+
+class MedidaPunto(BaseModel):
+    fecha: date
+    valor: float
+
+
+class MedidaMappingMeta(BaseModel):
+    is_subvariant_decomposed: bool
+    mapping_validated: Optional[bool]
+    validated_via: Optional[str]
+
+
+class MedidaSerieResponse(BaseModel):
+    afore: MedidaAforeRef
+    siefore: MedidaSieforeRef
+    metrica: MedidaMetricaRef
+    n_puntos: int
+    rango: SerieRango
+    serie: list[MedidaPunto]
+    mapping_meta: MedidaMappingMeta
+    caveats: list[str]
+
+
+class MedidaSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    siefore_slug: str
+    siefore_nombre: str
+    siefore_categoria: str
+    valor: float
+
+
+class MedidaSnapshotResponse(BaseModel):
+    fecha: date
+    metrica: MedidaMetricaRef
+    n_filas: int
+    valor_min: float
+    valor_max: float
+    filas: list[MedidaSnapshotRow]
+    caveats: list[str]
