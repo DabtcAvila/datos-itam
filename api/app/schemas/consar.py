@@ -313,3 +313,29 @@ class TraspasoSnapshotResponse(BaseModel):
     identidad: TraspasoIdentidad
     afores: list[TraspasoSnapshotRow]
     caveats: list[str]
+
+
+# ---------------------------------------------------------------------
+# 14. /pea-cotizantes/serie   (S16 — dataset #02, sin afore)
+# ---------------------------------------------------------------------
+
+
+class PeaCotizantesPunto(BaseModel):
+    anio: int
+    cotizantes: int
+    pea: int
+    porcentaje_pea_afore: float
+    brecha_no_cubierta_pct: float  # 100 - porcentaje (informalidad/desempleo/no-cotizantes)
+
+
+class PeaCotizantesResponse(BaseModel):
+    n_puntos: int
+    anio_min: int
+    anio_max: int
+    serie: list[PeaCotizantesPunto]
+    cobertura_min_pct: float
+    cobertura_min_anio: int
+    cobertura_max_pct: float
+    cobertura_max_anio: int
+    caveats: list[str]
+    source: str

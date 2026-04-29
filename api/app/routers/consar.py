@@ -38,6 +38,8 @@ from app.schemas.consar import (
     TraspasoSerieResponse,
     TraspasoSnapshotResponse,
     TraspasoSnapshotRow,
+    PeaCotizantesPunto,
+    PeaCotizantesResponse,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -1110,4 +1112,79 @@ async def get_traspasos_snapshot(
             for r in rows
         ],
         caveats=[CAVEAT_TRASPASO_BIENESTAR, CAVEAT_TRASPASO_NULLS, CAVEAT_TRASPASO_IDENTIDAD],
+    )
+
+
+# ---------------------------------------------------------------------
+# 14. GET /consar/pea-cotizantes/serie  (S16 — dataset #02, anual nacional)
+# ---------------------------------------------------------------------
+
+CAVEAT_PEA_COBERTURA_INTERPRETACION = (
+    "porcentaje_pea_afore mide cobertura formal del SAR sobre la PEA. La diferencia "
+    "con 100 (brecha_no_cubierta_pct) integra informalidad laboral, desempleo y "
+    "trabajadores elegibles que aún no se han registrado. No es índice de fracaso "
+    "del SAR sino reflejo del mercado laboral mexicano."
+)
+
+CAVEAT_PEA_FUENTES = (
+    "PEA y cotizantes vienen de fuentes distintas (INEGI ENOE para PEA, CONSAR "
+    "para cotizantes); CONSAR publica el ratio precalculado en este dataset."
+)
+
+SOURCE_PEA = (
+    "CONSAR vía datos.gob.mx (CC-BY-4.0) — datasets/02_pea_vs_cotizantes — "
+    "actualizado a 2024."
+)
+
+SQL_PEA = """
+SELECT anio, cotizantes, pea, porcentaje_pea_afore::float AS porcentaje_pea_afore
+FROM consar.pea_cotizantes
+ORDER BY anio
+"""
+
+
+@router.get(
+    "/pea-cotizantes/serie",
+    response_model=PeaCotizantesResponse,
+    summary="Serie anual: cobertura SAR sobre PEA mexicana (2010-2024)",
+    description=(
+        "Retorna la serie anual nacional de la cobertura del SAR (cotizantes formales) "
+        "sobre la PEA (Población Económicamente Activa) total. Incluye `brecha_no_cubierta_pct` "
+        "(=100 - porcentaje) que integra informalidad, desempleo y elegibles no registrados. "
+        "Cobertura 2010 → 2024 (15 puntos)."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_pea_cotizantes(request: Request) -> PeaCotizantesResponse:
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_PEA))).mappings().all()
+
+    if not rows:
+        raise HTTPException(status_code=500, detail="no hay datos en consar.pea_cotizantes")
+
+    serie = [
+        PeaCotizantesPunto(
+            anio=r["anio"],
+            cotizantes=r["cotizantes"],
+            pea=r["pea"],
+            porcentaje_pea_afore=round(r["porcentaje_pea_afore"], 2),
+            brecha_no_cubierta_pct=round(100.0 - r["porcentaje_pea_afore"], 2),
+        )
+        for r in rows
+    ]
+
+    cobertura_min = min(serie, key=lambda p: p.porcentaje_pea_afore)
+    cobertura_max = max(serie, key=lambda p: p.porcentaje_pea_afore)
+
+    return PeaCotizantesResponse(
+        n_puntos=len(serie),
+        anio_min=serie[0].anio,
+        anio_max=serie[-1].anio,
+        serie=serie,
+        cobertura_min_pct=cobertura_min.porcentaje_pea_afore,
+        cobertura_min_anio=cobertura_min.anio,
+        cobertura_max_pct=cobertura_max.porcentaje_pea_afore,
+        cobertura_max_anio=cobertura_max.anio,
+        caveats=[CAVEAT_PEA_FUENTES, CAVEAT_PEA_COBERTURA_INTERPRETACION],
+        source=SOURCE_PEA,
     )
