@@ -40,6 +40,15 @@ from app.schemas.consar import (
     TraspasoSnapshotRow,
     PeaCotizantesPunto,
     PeaCotizantesResponse,
+    ActivoNetoAforeRef,
+    ActivoNetoSieforeRef,
+    ActivoNetoPunto,
+    ActivoNetoMappingMeta,
+    ActivoNetoSerieResponse,
+    ActivoNetoSnapshotRow,
+    ActivoNetoSnapshotResponse,
+    ActivoNetoAggPunto,
+    ActivoNetoAggregadoResponse,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -1187,4 +1196,271 @@ async def get_pea_cotizantes(request: Request) -> PeaCotizantesResponse:
         cobertura_max_anio=cobertura_max.anio,
         caveats=[CAVEAT_PEA_FUENTES, CAVEAT_PEA_COBERTURA_INTERPRETACION],
         source=SOURCE_PEA,
+    )
+
+
+# ---------------------------------------------------------------------
+# 15. /activo-neto/*   (S16 — dataset #07, atomic + agg)
+# ---------------------------------------------------------------------
+
+CAVEAT_ACTIVO_NETO_UNIDAD = (
+    "Montos en millones de pesos MXN CORRIENTES (no deflactados). "
+    "Para comparaciones históricas reales, deflactar con INPC BASE 2018=100 INEGI."
+)
+
+CAVEAT_ACTIVO_NETO_NULLS = (
+    "NULLs preservados (670 totales en CSV oficial): 560 en sb 95-99 + 110 en sb 55-59. "
+    "Sparsity estructural por cohortes tardías: algunas afores no reportan esos buckets en todos los meses."
+)
+
+CAVEAT_ACTIVO_NETO_DECOMPOSITION = (
+    "Sub-variants concat de #07 (xxi banorte 1..10, sura av1..3, profuturo cp/lp, banamex av plus, "
+    "xxi banorte ahorro individual) descomponen a tuplas atómicas (afore × siefore) vía "
+    "consar.afore_siefore_alias. Profuturo cp/lp y Sura av1 confirmados por docs CONSAR; "
+    "Sura av2/av3 mapeados por inferencia lexicográfica + bijection con #10 (mapping_validated=FALSE)."
+)
+
+CAVEAT_ACTIVO_NETO_AGG_ADICIONALES = (
+    "Categoría act_neto_total_adicionales tiene 0 rows: el CSV oficial no reporta el agregado de "
+    "siefores adicionales a nivel afore commercial. Los 1,139 rows con tipo='adicionales' son sub-variants "
+    "que se descomponen a activo_neto atómico. Schema preparado para futura publicación CONSAR."
+)
+
+SOURCE_ACTIVO_NETO = (
+    "CONSAR vía datos.gob.mx (CC-BY-4.0) — datasets/07_activos_netos — cobertura 2019-12 → 2025-06."
+)
+
+SQL_ACTIVO_NETO_SERIE = """
+SELECT an.fecha, an.monto_mxn_mm::float AS monto_mxn_mm
+FROM consar.activo_neto an
+JOIN consar.afores af ON af.id = an.afore_id
+JOIN consar.cat_siefore cs ON cs.id = an.siefore_id
+WHERE af.codigo = :afore_codigo AND cs.slug = :siefore_slug
+ORDER BY an.fecha
+"""
+
+SQL_ACTIVO_NETO_SERIE_META = """
+SELECT af.codigo AS afore_codigo, af.nombre_corto AS afore_nombre_corto,
+       af.tipo_pension AS afore_tipo_pension,
+       cs.slug AS siefore_slug, cs.nombre AS siefore_nombre, cs.categoria AS siefore_categoria,
+       (SELECT mapping_validated FROM consar.afore_siefore_alias asa
+         WHERE asa.afore_id = af.id AND asa.siefore_id = cs.id AND asa.fuente_csv = '#07'
+         LIMIT 1) AS asa_validated,
+       (SELECT validated_via FROM consar.afore_siefore_alias asa
+         WHERE asa.afore_id = af.id AND asa.siefore_id = cs.id AND asa.fuente_csv = '#07'
+         LIMIT 1) AS asa_validated_via
+FROM consar.afores af, consar.cat_siefore cs
+WHERE af.codigo = :afore_codigo AND cs.slug = :siefore_slug
+"""
+
+SQL_ACTIVO_NETO_SNAPSHOT = """
+SELECT af.codigo AS afore_codigo, af.nombre_corto AS afore_nombre_corto,
+       cs.slug AS siefore_slug, cs.nombre AS siefore_nombre, cs.categoria AS siefore_categoria,
+       an.monto_mxn_mm::float AS monto_mxn_mm
+FROM consar.activo_neto an
+JOIN consar.afores af ON af.id = an.afore_id
+JOIN consar.cat_siefore cs ON cs.id = an.siefore_id
+WHERE an.fecha = :fecha
+ORDER BY af.orden_display, cs.orden_display
+"""
+
+SQL_ACTIVO_NETO_AGG = """
+SELECT ana.fecha, ana.monto_mxn_mm::float AS monto_mxn_mm
+FROM consar.activo_neto_agg ana
+JOIN consar.afores af ON af.id = ana.afore_id
+WHERE af.codigo = :afore_codigo AND ana.categoria = :categoria
+ORDER BY ana.fecha
+"""
+
+SQL_ACTIVO_NETO_AGG_AFORE_META = """
+SELECT codigo, nombre_corto, tipo_pension
+FROM consar.afores WHERE codigo = :afore_codigo
+"""
+
+
+@router.get(
+    "/activo-neto/serie",
+    response_model=ActivoNetoSerieResponse,
+    summary="Serie temporal: activo neto atómico por (AFORE × SIEFORE)",
+    description=(
+        "Retorna serie mensual de activo neto en MXN millones para una tupla (afore, siefore). "
+        "Si la tupla proviene de un sub-variant concat decompuesto, expone mapping_validated y "
+        "validated_via para transparencia. Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_activo_neto_serie(
+    request: Request,
+    afore_codigo: str = Query(..., description="codigo en consar.afores (e.g. xxi_banorte, profuturo)"),
+    siefore_slug: str = Query(..., description="slug en consar.cat_siefore (e.g. sb 55-59, sps1)"),
+) -> ActivoNetoSerieResponse:
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_ACTIVO_NETO_SERIE_META),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"afore_codigo={afore_codigo!r} o siefore_slug={siefore_slug!r} no existe",
+            )
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_ACTIVO_NETO_SERIE),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para ({afore_codigo}, {siefore_slug}) en consar.activo_neto",
+        )
+
+    serie = [
+        ActivoNetoPunto(fecha=r["fecha"], monto_mxn_mm=r["monto_mxn_mm"])
+        for r in rows
+    ]
+
+    asa_validated = meta["asa_validated"]
+    is_subvariant = asa_validated is not None
+    mapping_meta = ActivoNetoMappingMeta(
+        is_subvariant_decomposed=is_subvariant,
+        mapping_validated=asa_validated,
+        validated_via=meta["asa_validated_via"],
+    )
+
+    caveats = [CAVEAT_ACTIVO_NETO_UNIDAD, CAVEAT_ACTIVO_NETO_NULLS, CAVEAT_ACTIVO_NETO_DECOMPOSITION]
+
+    return ActivoNetoSerieResponse(
+        afore=ActivoNetoAforeRef(
+            codigo=meta["afore_codigo"],
+            nombre_corto=meta["afore_nombre_corto"],
+            tipo_pension=meta["afore_tipo_pension"],
+        ),
+        siefore=ActivoNetoSieforeRef(
+            slug=meta["siefore_slug"],
+            nombre=meta["siefore_nombre"],
+            categoria=meta["siefore_categoria"],
+        ),
+        unit="millones de pesos MXN corrientes",
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        serie=serie,
+        mapping_meta=mapping_meta,
+        caveats=caveats,
+    )
+
+
+@router.get(
+    "/activo-neto/snapshot",
+    response_model=ActivoNetoSnapshotResponse,
+    summary="Snapshot mensual: matriz (AFORE × SIEFORE) de activo neto",
+    description=(
+        "Retorna para una fecha mensual todas las tuplas (afore, siefore) con sus montos. "
+        "Útil para dashboards de composición por afore. Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_activo_neto_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01"),
+) -> ActivoNetoSnapshotResponse:
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_ACTIVO_NETO_SNAPSHOT), {"fecha": d})).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para fecha={d.isoformat()} (cobertura: 2019-12 → 2025-06)",
+        )
+
+    filas = [
+        ActivoNetoSnapshotRow(
+            afore_codigo=r["afore_codigo"],
+            afore_nombre_corto=r["afore_nombre_corto"],
+            siefore_slug=r["siefore_slug"],
+            siefore_nombre=r["siefore_nombre"],
+            siefore_categoria=r["siefore_categoria"],
+            monto_mxn_mm=r["monto_mxn_mm"],
+        )
+        for r in rows
+    ]
+    n_null = sum(1 for f in filas if f.monto_mxn_mm is None)
+    monto_total = sum((f.monto_mxn_mm or 0.0) for f in filas)
+
+    return ActivoNetoSnapshotResponse(
+        fecha=d,
+        unit="millones de pesos MXN corrientes",
+        n_filas=len(filas),
+        monto_total_mm=round(monto_total, 4),
+        n_filas_null=n_null,
+        filas=filas,
+        caveats=[CAVEAT_ACTIVO_NETO_UNIDAD, CAVEAT_ACTIVO_NETO_NULLS, CAVEAT_ACTIVO_NETO_DECOMPOSITION],
+    )
+
+
+@router.get(
+    "/activo-neto/agregado",
+    response_model=ActivoNetoAggregadoResponse,
+    summary="Serie temporal: agregado de activo neto por categoría (totales por afore)",
+    description=(
+        "Retorna serie mensual de un agregado total reportado en CSV por afore. "
+        "Categorías: act_neto_total_siefores, act_neto_total_basicas, act_neto_total_adicionales "
+        "(esta última con 0 rows post-S16 — schema preparado, ver caveats). "
+        "Cobertura 2019-12 → 2025-06."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_activo_neto_agregado(
+    request: Request,
+    afore_codigo: str = Query(..., description="codigo en consar.afores"),
+    categoria: str = Query(
+        ...,
+        description="act_neto_total_siefores | act_neto_total_basicas | act_neto_total_adicionales",
+    ),
+) -> ActivoNetoAggregadoResponse:
+    if categoria not in ("act_neto_total_siefores", "act_neto_total_basicas", "act_neto_total_adicionales"):
+        raise HTTPException(status_code=422, detail=f"categoria inválida: {categoria!r}")
+
+    async with engine.connect() as conn:
+        af_rows = (await conn.execute(
+            text(SQL_ACTIVO_NETO_AGG_AFORE_META),
+            {"afore_codigo": afore_codigo},
+        )).mappings().all()
+        if not af_rows:
+            raise HTTPException(status_code=404, detail=f"afore_codigo={afore_codigo!r} no existe")
+        af = af_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_ACTIVO_NETO_AGG),
+            {"afore_codigo": afore_codigo, "categoria": categoria},
+        )).mappings().all()
+
+    if not rows:
+        detail = f"sin datos para ({afore_codigo}, {categoria}). "
+        if categoria == "act_neto_total_adicionales":
+            detail += "Categoría con 0 rows en CSV oficial — ver caveats."
+        else:
+            detail += "Esta afore puede no reportar este agregado (e.g. xxi_banorte reporta vía alias xxi-banorte)."
+        raise HTTPException(status_code=404, detail=detail)
+
+    serie = [ActivoNetoAggPunto(fecha=r["fecha"], monto_mxn_mm=r["monto_mxn_mm"]) for r in rows]
+    caveats = [CAVEAT_ACTIVO_NETO_UNIDAD]
+    if categoria == "act_neto_total_adicionales":
+        caveats.append(CAVEAT_ACTIVO_NETO_AGG_ADICIONALES)
+
+    return ActivoNetoAggregadoResponse(
+        afore=ActivoNetoAforeRef(
+            codigo=af["codigo"],
+            nombre_corto=af["nombre_corto"],
+            tipo_pension=af["tipo_pension"],
+        ),
+        categoria=categoria,
+        unit="millones de pesos MXN corrientes",
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        serie=serie,
+        caveats=caveats,
     )

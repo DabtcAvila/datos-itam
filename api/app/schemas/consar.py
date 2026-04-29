@@ -338,4 +338,78 @@ class PeaCotizantesResponse(BaseModel):
     cobertura_max_pct: float
     cobertura_max_anio: int
     caveats: list[str]
-    source: str
+
+
+# ---------------------------------------------------------------------
+# 15. /activo-neto/*   (S16 — dataset #07, atomic + agg)
+# ---------------------------------------------------------------------
+
+
+class ActivoNetoAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class ActivoNetoSieforeRef(BaseModel):
+    slug: str
+    nombre: str
+    categoria: str
+
+
+class ActivoNetoPunto(BaseModel):
+    fecha: date
+    monto_mxn_mm: Optional[float]
+
+
+class ActivoNetoMappingMeta(BaseModel):
+    """Provenance del mapping para pares (afore × siefore) que vienen de
+    sub-variants decompuestos en #07 (consar.afore_siefore_alias)."""
+    is_subvariant_decomposed: bool   # True si el par fue decompuesto desde un sub-variant concat
+    mapping_validated: Optional[bool]  # None si is_subvariant_decomposed=False (mapping directo, atómico desde origen)
+    validated_via: Optional[str]
+
+
+class ActivoNetoSerieResponse(BaseModel):
+    afore: ActivoNetoAforeRef
+    siefore: ActivoNetoSieforeRef
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[ActivoNetoPunto]
+    mapping_meta: ActivoNetoMappingMeta
+    caveats: list[str]
+
+
+class ActivoNetoSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    siefore_slug: str
+    siefore_nombre: str
+    siefore_categoria: str
+    monto_mxn_mm: Optional[float]
+
+
+class ActivoNetoSnapshotResponse(BaseModel):
+    fecha: date
+    unit: str
+    n_filas: int
+    monto_total_mm: float       # excluye NULLs
+    n_filas_null: int
+    filas: list[ActivoNetoSnapshotRow]
+    caveats: list[str]
+
+
+class ActivoNetoAggPunto(BaseModel):
+    fecha: date
+    monto_mxn_mm: Optional[float]
+
+
+class ActivoNetoAggregadoResponse(BaseModel):
+    afore: ActivoNetoAforeRef
+    categoria: str
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[ActivoNetoAggPunto]
+    caveats: list[str]
