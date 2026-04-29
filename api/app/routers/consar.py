@@ -22,6 +22,11 @@ from app.schemas.consar import (
     AforeRow,
     AforesResponse,
     AforeSnapshotRow,
+    ComisionAforeRef,
+    ComisionPunto,
+    ComisionSerieResponse,
+    ComisionSnapshotResponse,
+    ComisionSnapshotRow,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -613,4 +618,155 @@ async def get_serie(
         rango=SerieRango(desde=d_desde, hasta=d_hasta),
         serie=[SeriePunto(fecha=r["fecha"], monto_mxn_mm=round(r["monto_mxn_mm"], 2)) for r in serie_rows],
         caveats=caveats,
+    )
+
+
+# ---------------------------------------------------------------------
+# 9. GET /consar/comisiones/serie — serie temporal por AFORE (S16, dataset #06)
+# ---------------------------------------------------------------------
+
+CAVEAT_COMISION_BIENESTAR = (
+    "Pensión Bienestar (FPB9) NO reporta comisión: régimen administrativo diferenciado "
+    "(serie comienza 2024-07-01 con esquema sin comisión sobre saldo)."
+)
+
+CAVEAT_COMISION_REFORMA = (
+    "Cobertura empieza 2008-03-01 con la reforma de transparencia CONSAR. Tendencia secular "
+    "descendente: cap regulatorio fue bajando ~1.96% (2008) → ~0.55% (2025)."
+)
+
+SOURCE_COMISIONES = (
+    "CONSAR vía datos.gob.mx (CC-BY-4.0) — datasets/06_comisiones — "
+    "actualizado a 2025-06-01."
+)
+
+SQL_COMISION_AFORE_META = """
+SELECT codigo, nombre_corto, tipo_pension
+FROM consar.afores
+WHERE codigo = :codigo
+"""
+
+SQL_COMISION_SERIE = """
+SELECT c.fecha,
+       c.comision::float AS comision_pct
+FROM consar.comisiones c
+JOIN consar.afores a ON a.id = c.afore_id
+WHERE (CAST(:afore_codigo AS text) IS NULL OR a.codigo = :afore_codigo)
+  AND c.fecha >= :desde
+  AND c.fecha <= :hasta
+ORDER BY c.fecha, a.orden_display
+"""
+
+
+@router.get(
+    "/comisiones/serie",
+    response_model=ComisionSerieResponse,
+    summary="Serie temporal: comisión cobrada por AFORE (% anual sobre saldo)",
+    description=(
+        "Retorna la serie mensual de comisiones cobradas por una AFORE específica "
+        "(o todas si se omite `afore_codigo`). Comisión expresada como porcentaje "
+        "anual sobre saldo administrado (e.g. 1.96 = 1.96%). "
+        "Cobertura 2008-03-01 → 2025-06-01."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_comisiones_serie(
+    request: Request,
+    afore_codigo: Optional[str] = Query(None, description="Código AFORE opcional (e.g. 'profuturo')"),
+    desde: Optional[str] = Query(None, description="YYYY-MM o YYYY-MM-01 (default 2008-03)"),
+    hasta: Optional[str] = Query(None, description="YYYY-MM o YYYY-MM-01 (default 2025-06)"),
+) -> ComisionSerieResponse:
+    d_desde = _parse_fecha(desde) if desde else date(2008, 3, 1)
+    d_hasta = _parse_fecha(hasta) if hasta else date(2025, 6, 1)
+    if d_desde > d_hasta:
+        raise HTTPException(status_code=422, detail="'desde' debe ser <= 'hasta'")
+
+    async with engine.connect() as conn:
+        afore_row = None
+        if afore_codigo is not None:
+            afore_row = (await conn.execute(text(SQL_COMISION_AFORE_META), {"codigo": afore_codigo})).mappings().one_or_none()
+            if afore_row is None:
+                raise HTTPException(status_code=404, detail=f"afore '{afore_codigo}' no existe")
+
+        serie_rows = (await conn.execute(
+            text(SQL_COMISION_SERIE),
+            {"afore_codigo": afore_codigo, "desde": d_desde, "hasta": d_hasta},
+        )).mappings().all()
+
+    caveats = [CAVEAT_COMISION_REFORMA, CAVEAT_COMISION_BIENESTAR]
+
+    return ComisionSerieResponse(
+        afore=ComisionAforeRef(**dict(afore_row)) if afore_row else None,
+        unit="porcentaje anual sobre saldo administrado",
+        n_puntos=len(serie_rows),
+        rango=SerieRango(desde=d_desde, hasta=d_hasta),
+        serie=[ComisionPunto(fecha=r["fecha"], comision_pct=round(r["comision_pct"], 4)) for r in serie_rows],
+        caveats=caveats,
+    )
+
+
+# ---------------------------------------------------------------------
+# 10. GET /consar/comisiones/snapshot?fecha=YYYY-MM (S16, dataset #06)
+# ---------------------------------------------------------------------
+
+SQL_COMISION_SNAPSHOT = """
+SELECT a.codigo AS afore_codigo,
+       a.nombre_corto AS afore_nombre_corto,
+       a.tipo_pension,
+       a.orden_display,
+       c.comision::float AS comision_pct
+FROM consar.afores a
+LEFT JOIN consar.comisiones c
+       ON c.afore_id = a.id AND c.fecha = :fecha
+WHERE a.codigo <> 'pension_bienestar'  -- no reporta comisión por construcción
+ORDER BY a.orden_display
+"""
+
+
+@router.get(
+    "/comisiones/snapshot",
+    response_model=ComisionSnapshotResponse,
+    summary="Snapshot mensual: comisión cobrada por cada AFORE en una fecha específica",
+    description=(
+        "Retorna para la fecha indicada (YYYY-MM o YYYY-MM-01) la comisión cobrada por "
+        "cada una de las 10 AFOREs reportantes. Incluye promedio simple, mínima y máxima del "
+        "sistema. Pensión Bienestar excluida (régimen sin comisión sobre saldo)."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_comisiones_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01 (cobertura 2008-03 a 2025-06)"),
+) -> ComisionSnapshotResponse:
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_COMISION_SNAPSHOT), {"fecha": d})).mappings().all()
+
+    reporting = [r for r in rows if r["comision_pct"] is not None]
+    if not reporting:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos para fecha={d.isoformat()} (cobertura: 2008-03 a 2025-06)",
+        )
+
+    valores = [r["comision_pct"] for r in reporting]
+    promedio = sum(valores) / len(valores)
+
+    return ComisionSnapshotResponse(
+        fecha=d,
+        unit="porcentaje anual sobre saldo administrado",
+        n_afores_reportando=len(reporting),
+        promedio_simple_pct=round(promedio, 4),
+        minima_pct=round(min(valores), 4),
+        maxima_pct=round(max(valores), 4),
+        afores=[
+            ComisionSnapshotRow(
+                afore_codigo=r["afore_codigo"],
+                afore_nombre_corto=r["afore_nombre_corto"],
+                tipo_pension=r["tipo_pension"],
+                comision_pct=round(r["comision_pct"], 4) if r["comision_pct"] is not None else None,
+            )
+            for r in rows
+        ],
+        caveats=[CAVEAT_COMISION_REFORMA, CAVEAT_COMISION_BIENESTAR],
     )

@@ -173,3 +173,46 @@ class SerieResponse(BaseModel):
     rango: SerieRango
     serie: list[SeriePunto]
     caveats: list[str]
+
+
+# ---------------------------------------------------------------------
+# 9. /comisiones/serie + /comisiones/snapshot   (S16 — dataset #06)
+# ---------------------------------------------------------------------
+
+
+class ComisionPunto(BaseModel):
+    fecha: date
+    comision_pct: float  # porcentaje anual (e.g. 1.96 = 1.96%)
+
+
+class ComisionAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class ComisionSerieResponse(BaseModel):
+    afore: Optional[ComisionAforeRef]  # None → comparativo de todas las afores
+    unit: str
+    n_puntos: int
+    rango: SerieRango
+    serie: list[ComisionPunto]
+    caveats: list[str]
+
+
+class ComisionSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    tipo_pension: str
+    comision_pct: Optional[float]  # None si la AFORE aún no había arrancado en esa fecha
+
+
+class ComisionSnapshotResponse(BaseModel):
+    fecha: date
+    unit: str
+    n_afores_reportando: int
+    promedio_simple_pct: float
+    minima_pct: float
+    maxima_pct: float
+    afores: list[ComisionSnapshotRow]
+    caveats: list[str]
