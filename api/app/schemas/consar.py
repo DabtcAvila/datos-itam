@@ -652,3 +652,68 @@ class CuentaSistemaResponse(BaseModel):
     metricas: list[CuentaMetricaRef]
     serie: list[CuentaSistemaPunto]
     caveats: list[str]
+
+
+# ============================================================
+# S16 Sub-fase 8 — #01 precio_bolsa
+# ============================================================
+
+class PrecioAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class PrecioSieforeRef(BaseModel):
+    slug: str
+    nombre: str
+    categoria: str
+
+
+class PrecioPunto(BaseModel):
+    fecha: date
+    precio: float
+
+
+class PrecioSerieResponse(BaseModel):
+    afore: PrecioAforeRef
+    siefore: PrecioSieforeRef
+    n_puntos: int
+    rango: SerieRango
+    precio_min: float
+    precio_max: float
+    serie: list[PrecioPunto]
+    caveats: list[str]
+
+
+class PrecioSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    siefore_slug: str
+    siefore_nombre: str
+    siefore_categoria: str
+    precio: float
+
+
+class PrecioSnapshotResponse(BaseModel):
+    fecha: date
+    n_filas: int
+    precio_min: float
+    precio_max: float
+    filas: list[PrecioSnapshotRow]
+    caveats: list[str]
+
+
+class PrecioComparativoSerieAfore(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    n_puntos: int
+    serie: list[PrecioPunto]
+
+
+class PrecioComparativoResponse(BaseModel):
+    siefore: PrecioSieforeRef
+    rango: SerieRango
+    n_afores: int
+    series: list[PrecioComparativoSerieAfore]
+    caveats: list[str]
