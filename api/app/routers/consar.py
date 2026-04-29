@@ -32,6 +32,12 @@ from app.schemas.consar import (
     FlujoSerieResponse,
     FlujoSnapshotResponse,
     FlujoSnapshotRow,
+    TraspasoAforeRef,
+    TraspasoIdentidad,
+    TraspasoPunto,
+    TraspasoSerieResponse,
+    TraspasoSnapshotResponse,
+    TraspasoSnapshotRow,
     ComponenteSnapshotRow,
     ComposicionItem,
     ComposicionResponse,
@@ -932,4 +938,176 @@ async def get_flujos_snapshot(
             for r in rows
         ],
         caveats=[CAVEAT_FLUJO_COBERTURA, CAVEAT_FLUJO_BIENESTAR],
+    )
+
+
+# ---------------------------------------------------------------------
+# 13. GET /consar/traspasos/serie + /snapshot (S16 #08)
+# ---------------------------------------------------------------------
+
+CAVEAT_TRASPASO_BIENESTAR = (
+    "Pensión Bienestar (FPB9) NO reporta este dataset (régimen administrativo diferenciado). "
+    "Solo 10 de las 11 AFOREs aparecen en traspasos."
+)
+
+CAVEAT_TRASPASO_NULLS = (
+    "Filas con num_tras_cedido y num_tras_recibido ambos NULL representan meses "
+    "previos al alta de la AFORE en el sistema (336 filas en el corte 2025-06)."
+)
+
+CAVEAT_TRASPASO_IDENTIDAD = (
+    "Identidad implícita Σ cedidos = Σ recibidos (cada traspaso es 1 cedido + 1 recibido). "
+    "Verificada empíricamente: cierre exacto en 100% de meses 2021-2025; residuo histórico "
+    "concentrado pre-2020 (39% global de 282 meses con datos). Probable explicación: "
+    "cancelaciones, cuentas asignadas Banxico, ajustes administrativos antes de "
+    "estandarización de reportes."
+)
+
+SQL_TRASPASO_AFORE_META = """
+SELECT codigo, nombre_corto, tipo_pension
+FROM consar.afores
+WHERE codigo = :codigo
+"""
+
+SQL_TRASPASO_SERIE = """
+SELECT t.fecha,
+       SUM(t.num_tras_cedido)   AS sum_ced,
+       SUM(t.num_tras_recibido) AS sum_rec
+FROM consar.traspaso t
+JOIN consar.afores a ON a.id = t.afore_id
+WHERE (CAST(:afore_codigo AS text) IS NULL OR a.codigo = :afore_codigo)
+  AND t.fecha >= :desde
+  AND t.fecha <= :hasta
+GROUP BY t.fecha
+ORDER BY t.fecha
+"""
+
+
+@router.get(
+    "/traspasos/serie",
+    response_model=TraspasoSerieResponse,
+    summary="Serie temporal: cuentas cedidas/recibidas en traspasos por AFORE (o sistema)",
+    description=(
+        "Retorna serie mensual de cuentas cedidas (perdidas) y recibidas (ganadas) en "
+        "traspasos AFORE-AFORE. Si `afore_codigo` se omite, suma sobre todas las "
+        "AFOREs. Cobertura 1998-11-01 → 2025-06-01. "
+        "`traspaso_neto = recibido - cedido` (positivo = AFORE ganando cuentas neto)."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_traspasos_serie(
+    request: Request,
+    afore_codigo: Optional[str] = Query(None),
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+) -> TraspasoSerieResponse:
+    d_desde = _parse_fecha(desde) if desde else date(1998, 11, 1)
+    d_hasta = _parse_fecha(hasta) if hasta else date(2025, 6, 1)
+    if d_desde > d_hasta:
+        raise HTTPException(status_code=422, detail="'desde' debe ser <= 'hasta'")
+
+    async with engine.connect() as conn:
+        afore_row = None
+        if afore_codigo is not None:
+            afore_row = (await conn.execute(text(SQL_TRASPASO_AFORE_META), {"codigo": afore_codigo})).mappings().one_or_none()
+            if afore_row is None:
+                raise HTTPException(status_code=404, detail=f"afore '{afore_codigo}' no existe")
+
+        rows = (await conn.execute(
+            text(SQL_TRASPASO_SERIE),
+            {"afore_codigo": afore_codigo, "desde": d_desde, "hasta": d_hasta},
+        )).mappings().all()
+
+    serie: list[TraspasoPunto] = []
+    for r in rows:
+        ced = r["sum_ced"]
+        rec = r["sum_rec"]
+        neto = (rec - ced) if (ced is not None and rec is not None) else None
+        serie.append(TraspasoPunto(
+            fecha=r["fecha"],
+            num_tras_cedido=int(ced) if ced is not None else None,
+            num_tras_recibido=int(rec) if rec is not None else None,
+            traspaso_neto=int(neto) if neto is not None else None,
+        ))
+
+    return TraspasoSerieResponse(
+        afore=TraspasoAforeRef(**dict(afore_row)) if afore_row else None,
+        n_puntos=len(serie),
+        rango=SerieRango(desde=d_desde, hasta=d_hasta),
+        serie=serie,
+        caveats=[CAVEAT_TRASPASO_BIENESTAR, CAVEAT_TRASPASO_IDENTIDAD],
+    )
+
+
+SQL_TRASPASO_SNAPSHOT = """
+SELECT a.codigo AS afore_codigo,
+       a.nombre_corto AS afore_nombre_corto,
+       a.tipo_pension,
+       a.orden_display,
+       t.num_tras_cedido,
+       t.num_tras_recibido
+FROM consar.afores a
+LEFT JOIN consar.traspaso t
+       ON t.afore_id = a.id AND t.fecha = :fecha
+WHERE a.codigo <> 'pension_bienestar'
+ORDER BY a.orden_display
+"""
+
+
+@router.get(
+    "/traspasos/snapshot",
+    response_model=TraspasoSnapshotResponse,
+    summary="Snapshot mensual: traspasos por AFORE + identidad Σced=Σrec",
+    description=(
+        "Retorna para la fecha indicada los traspasos cedidos/recibidos por cada "
+        "AFORE reportante. Incluye verificación de la identidad implícita "
+        "Σ cedidos = Σ recibidos (cada traspaso es 1+1)."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_traspasos_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM o YYYY-MM-01"),
+) -> TraspasoSnapshotResponse:
+    d = _parse_fecha(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(text(SQL_TRASPASO_SNAPSHOT), {"fecha": d})).mappings().all()
+
+    reporting = [
+        r for r in rows
+        if r["num_tras_cedido"] is not None or r["num_tras_recibido"] is not None
+    ]
+    if not reporting:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos para fecha={d.isoformat()} (cobertura: 1998-11 a 2025-06)",
+        )
+
+    sis_ced = sum((r["num_tras_cedido"]   or 0) for r in reporting)
+    sis_rec = sum((r["num_tras_recibido"] or 0) for r in reporting)
+    delta = sis_ced - sis_rec
+
+    return TraspasoSnapshotResponse(
+        fecha=d,
+        n_afores_reportando=len(reporting),
+        identidad=TraspasoIdentidad(
+            sistema_total_cedido=int(sis_ced),
+            sistema_total_recibido=int(sis_rec),
+            delta=int(delta),
+            cierre_al_unidad=(delta == 0),
+        ),
+        afores=[
+            TraspasoSnapshotRow(
+                afore_codigo=r["afore_codigo"],
+                afore_nombre_corto=r["afore_nombre_corto"],
+                tipo_pension=r["tipo_pension"],
+                num_tras_cedido=int(r["num_tras_cedido"]) if r["num_tras_cedido"] is not None else None,
+                num_tras_recibido=int(r["num_tras_recibido"]) if r["num_tras_recibido"] is not None else None,
+                traspaso_neto=(int(r["num_tras_recibido"]) - int(r["num_tras_cedido"]))
+                              if (r["num_tras_cedido"] is not None and r["num_tras_recibido"] is not None)
+                              else None,
+            )
+            for r in rows
+        ],
+        caveats=[CAVEAT_TRASPASO_BIENESTAR, CAVEAT_TRASPASO_NULLS, CAVEAT_TRASPASO_IDENTIDAD],
     )

@@ -263,3 +263,53 @@ class FlujoSnapshotResponse(BaseModel):
     sistema_flujo_neto_mm: float
     afores: list[FlujoSnapshotRow]
     caveats: list[str]
+
+
+# ---------------------------------------------------------------------
+# 13. /traspasos/serie + /traspasos/snapshot   (S16 — dataset #08)
+# ---------------------------------------------------------------------
+
+
+class TraspasoPunto(BaseModel):
+    fecha: date
+    num_tras_cedido: Optional[int]
+    num_tras_recibido: Optional[int]
+    traspaso_neto: Optional[int]  # recibido - cedido (None si ambas son None)
+
+
+class TraspasoAforeRef(BaseModel):
+    codigo: str
+    nombre_corto: str
+    tipo_pension: str
+
+
+class TraspasoSerieResponse(BaseModel):
+    afore: Optional[TraspasoAforeRef]  # None → suma sistema
+    n_puntos: int
+    rango: SerieRango
+    serie: list[TraspasoPunto]
+    caveats: list[str]
+
+
+class TraspasoSnapshotRow(BaseModel):
+    afore_codigo: str
+    afore_nombre_corto: str
+    tipo_pension: str
+    num_tras_cedido: Optional[int]
+    num_tras_recibido: Optional[int]
+    traspaso_neto: Optional[int]
+
+
+class TraspasoIdentidad(BaseModel):
+    sistema_total_cedido: int
+    sistema_total_recibido: int
+    delta: int  # cedido - recibido (debería ser 0 por construcción)
+    cierre_al_unidad: bool  # True si delta == 0
+
+
+class TraspasoSnapshotResponse(BaseModel):
+    fecha: date
+    n_afores_reportando: int
+    identidad: TraspasoIdentidad
+    afores: list[TraspasoSnapshotRow]
+    caveats: list[str]
