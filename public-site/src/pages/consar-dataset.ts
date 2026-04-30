@@ -11,6 +11,9 @@ import { buildNavTabs } from '../shared/nav';
 import { buildConsarSubnav, getConsarItem } from '../consar-extra/shared/nav';
 import { CONSAR_EXTRA_CSS } from '../consar-extra/shared/styles';
 import { buildPeaCotizantes } from '../consar-extra/datasets/pea-cotizantes';
+import { buildComisiones } from '../consar-extra/datasets/comisiones';
+import { buildFlujos } from '../consar-extra/datasets/flujos';
+import { buildTraspasos } from '../consar-extra/datasets/traspasos';
 
 export function renderConsarDataset(slug: string): string | null {
   const item = getConsarItem(slug);
@@ -21,13 +24,18 @@ export function renderConsarDataset(slug: string): string | null {
     case 'pea-cotizantes':
       payload = buildPeaCotizantes();
       break;
-    // case 'comisiones': payload = buildComisiones(); break;     // Phase B
-    // case 'flujos':     payload = buildFlujos(); break;          // Phase B
-    // case 'traspasos':  payload = buildTraspasos(); break;       // Phase B
-    // ... etc
+    case 'comisiones':
+      payload = buildComisiones();
+      break;
+    case 'flujos':
+      payload = buildFlujos();
+      break;
+    case 'traspasos':
+      payload = buildTraspasos();
+      break;
     default:
       // El slug está registrado en CONSAR_SUBNAV pero el módulo no existe
-      // todavía (caso esperado durante Phases B-D). Tratamos como "no encontrado".
+      // todavía (caso esperado durante Phases C-D). Tratamos como "no encontrado".
       return null;
   }
 
