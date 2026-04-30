@@ -1,5 +1,7 @@
 import { CSS } from '../styles';
 import { buildNavTabs } from '../shared/nav';
+import { buildConsarSubnav } from '../consar-extra/shared/nav';
+import { CONSAR_EXTRA_CSS } from '../consar-extra/shared/styles';
 import {
   buildConsarHero,
   buildD1_Totales,
@@ -33,7 +35,7 @@ export function renderConsarDashboard(): string {
   <meta property="og:url" content="https://datos-itam.org/consar">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏦</text></svg>">
-  <style>${CSS}</style>
+  <style>${CSS}${CONSAR_EXTRA_CSS}</style>
 </head>
 <body>
 
@@ -50,6 +52,7 @@ export function renderConsarDashboard(): string {
   </header>
 
   ${buildNavTabs('consar')}
+  ${buildConsarSubnav('overview')}
 
   <main class="container">
 

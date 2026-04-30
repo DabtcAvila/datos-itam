@@ -67,7 +67,7 @@ export default {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'public, max-age=60, must-revalidate',
       },
     });
   },
