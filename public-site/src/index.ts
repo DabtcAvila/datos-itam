@@ -2,6 +2,7 @@ import { renderDashboard } from './pages/dashboard';
 import { renderEnighDashboard } from './pages/enigh';
 import { renderComparativoDashboard } from './pages/comparativo';
 import { renderConsarDashboard } from './pages/consar';
+import { renderConsarDataset } from './pages/consar-dataset';
 import { renderPensionalDashboard } from './pages/pensional';
 import { renderDemo } from './pages/demo';
 import { renderTerms } from './pages/terms';
@@ -29,12 +30,24 @@ export default {
     }
 
     let html: string;
+    let status = 200;
+    const consarSubMatch = /^\/consar\/([a-z][a-z0-9-]*)$/.exec(path);
     if (path === '/enigh') {
       html = renderEnighDashboard();
     } else if (path === '/comparativo') {
       html = renderComparativoDashboard();
     } else if (path === '/consar') {
       html = renderConsarDashboard();
+    } else if (consarSubMatch) {
+      const sub = renderConsarDataset(consarSubMatch[1]);
+      if (sub) {
+        html = sub;
+      } else {
+        // Slug no implementado o desconocido: devolver landing CONSAR con 404.
+        // El sub-nav muestra el slug aún así; usuario navega manualmente.
+        html = renderConsarDashboard();
+        status = 404;
+      }
     } else if (path === '/pensional') {
       html = renderPensionalDashboard();
     } else if (path === '/demo') {
@@ -48,6 +61,7 @@ export default {
     }
 
     return new Response(html, {
+      status,
       headers: {
         'Content-Type': 'text/html;charset=UTF-8',
         'X-Content-Type-Options': 'nosniff',

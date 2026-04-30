@@ -1,0 +1,290 @@
+// CSS extra para sub-secciones /consar/<slug>.
+// Se inyecta DESPUÉS del CSS global (styles.ts) para que las clases
+// más específicas tomen precedencia. Variables CSS reutilizadas:
+// --bg, --bg-card, --bg-hover, --border, --text, --text-secondary,
+// --text-muted, --accent, --accent-dim, --green, --green-dim, --red,
+// --red-dim, --yellow, --yellow-dim, --purple.
+
+export const CONSAR_EXTRA_CSS = `
+/* ===== Sub-nav nivel-2 (pills horizontales) ===== */
+.consar-subnav {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.7rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.consar-subnav::-webkit-scrollbar { display: none; }
+
+.consar-subnav-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.consar-subnav-pill:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.consar-subnav-pill.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.consar-subnav-label {
+  font-weight: 600;
+}
+.consar-subnav-meta {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.consar-subnav-pill.active .consar-subnav-meta {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+  .consar-subnav { padding: 0.55rem 1rem; }
+  .consar-subnav-pill { padding: 0.35rem 0.65rem; font-size: 0.75rem; }
+}
+
+/* ===== Hero caveats (bloque inline cerca del hero) ===== */
+.consar-hero-caveats {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  margin: 1rem 0 1.5rem;
+  max-width: 880px;
+}
+.consar-hero-caveats-title {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.45rem;
+  font-weight: 600;
+}
+.consar-hero-caveats-list {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding-left: 1.2rem;
+  margin: 0;
+}
+.consar-hero-caveats-list li { margin-bottom: 0.35rem; }
+.consar-hero-caveats-list li:last-child { margin-bottom: 0; }
+.consar-hero-caveats-list strong { color: var(--text); }
+.consar-hero-caveats-list code {
+  background: var(--bg);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.consar-hero-caveat-item--emph {
+  border-left: 2px solid var(--yellow);
+  padding-left: 0.6rem;
+  margin-left: -0.6rem;
+}
+
+/* ===== Selectors bar ===== */
+.consar-selectors-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-end;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.5rem;
+}
+.consar-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.consar-selector-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.consar-selector-input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  min-width: 160px;
+  appearance: auto;
+}
+.consar-selector-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.consar-apply-btn {
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.05s;
+  align-self: flex-end;
+  height: 38px;
+}
+.consar-apply-btn:hover { filter: brightness(1.08); }
+.consar-apply-btn:active { transform: translateY(1px); }
+.consar-apply-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 560px) {
+  .consar-selector { flex: 1 1 calc(50% - 0.5rem); min-width: 0; }
+  .consar-selector-input { min-width: 0; width: 100%; }
+  .consar-apply-btn { width: 100%; }
+}
+
+/* ===== Tabla del dataset ===== */
+.consar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.consar-table-loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem;
+  font-style: italic;
+}
+.consar-table tbody tr.consar-table-row-warning td {
+  background: rgba(234, 179, 8, 0.04);
+}
+
+/* ===== Mapping flag badge ===== */
+.consar-mapping-badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.consar-mapping-badge--confirmed {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.consar-mapping-badge--inferred {
+  background: var(--yellow-dim);
+  color: var(--yellow);
+  cursor: help;
+}
+
+/* ===== Source footer ===== */
+.consar-source-footer {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.consar-source-row { padding: 0.1rem 0; }
+.consar-source-row strong { color: var(--text-secondary); margin-right: 0.4rem; }
+.consar-source-row a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.consar-source-row a:hover { text-decoration: underline; }
+.consar-source-row code {
+  background: var(--bg);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+/* ===== Error banner inline (sub-section) ===== */
+.consar-error-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid var(--red);
+  color: var(--red);
+  border-radius: 6px;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.85rem;
+  margin: 1rem 0;
+  display: none;
+}
+.consar-error-banner.active { display: block; }
+
+/* ===== Refresh button (clonado de demo.ts pattern) ===== */
+.consar-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+.consar-toolbar h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.consar-toolbar-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.consar-refresh-btn {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.consar-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.consar-refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== Visually hidden (a11y) ===== */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+`;
