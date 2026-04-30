@@ -2686,3 +2686,316 @@ async def get_precio_comparativo(
         series=series,
         caveats=[CAVEAT_PRECIO_NAV, CAVEAT_PRECIO_COBERTURA, CAVEAT_PRECIO_BANAMEX_MERGE],
     )
+
+
+# ============================================================
+# S16 Sub-fase 9 — #11 precio_gestion (3 endpoints)
+# Reusa modelos Pydantic Precio* de #01 (estructura idéntica).
+# ============================================================
+
+CAVEAT_GESTION_PRECIO = (
+    "Precios de gestión interna en MXN por SIEFORE. Granularidad diaria de mercado "
+    "(M-V principalmente, algunos weekends por reporting CONSAR). Range empírico observado "
+    "[0.506404, 24.853032]: max NAV +30% vs precio_bolsa (19.045541), sugiere distinta "
+    "base/comisión entre serie de precio bolsa y serie de gestión interna. Hallazgo "
+    "descriptivo, NO interpretativo."
+)
+CAVEAT_GESTION_COBERTURA = (
+    "Cobertura diaria 1997-01-07 → 2025-12-06 (28+ años, 7,060 fechas). 1 fecha extra "
+    "vs precio_bolsa: 1997-01-07 (única fecha cubierta exclusivamente por XXI legacy/sb5). "
+    "Cohortes generacionales más nuevas (sb 95-99, post-reforma SB 2019) tienen series "
+    "más cortas. Productos legacy (sac, siav) pueden estar discontinuados."
+)
+CAVEAT_GESTION_BANAMEX_MERGE = (
+    "AFORE codigo banamex unifica strings 'banamex' y 'citibanamex' del CSV original "
+    "(rebrand corporativo 2014). Empíricamente disjoint en (fecha × siefore): banamex "
+    "string reportó 10 siefores excepto sb 55-59 y siav; citibanamex reportó SOLO sb 55-59 "
+    "y siav. Series unificadas bajo afore_id=3 (codigo=banamex) para preservar continuidad "
+    "histórica 1997+. Validado a 588K rows + 0 PK colisiones."
+)
+CAVEAT_GESTION_XXI_LEGACY = (
+    "AFORE codigo xxi_banorte unifica strings 'xxi-banorte' (con guion) y 'xxi' (legacy "
+    "standalone pre-fusión 2013). XXI legacy aparece exclusivamente para SIEFORE sb5 "
+    "(basica_legacy ≤2012, 3,664 fechas distintas 1997-01-07 → 2012-12-01). XXI-Banorte "
+    "cubre 17 siefores ≠ sb5 desde 1997-01-08+. Disjoint perfecto en siefore: 0 PK "
+    "colisiones. Series unificadas bajo afore_id=2 (codigo=xxi_banorte) preservan "
+    "continuidad histórica."
+)
+CAVEAT_GESTION_NO_PENSIONISSSTE = (
+    "PensionISSSTE (afore_id=6, AFORE pública del ISSSTE) NO aparece en este dataset. "
+    "Diferencia estructural vs precio_bolsa: el reporte CONSAR de precios de gestión "
+    "interna omite la AFORE pública. Filtrar por afore_codigo='pensionissste' devuelve 404. "
+    "Para precio bolsa de PensionISSSTE consultar /precios/serie."
+)
+
+
+SQL_GESTION_SERIE_META = """
+SELECT
+    a.codigo            AS afore_codigo,
+    a.nombre_corto      AS afore_nombre_corto,
+    a.tipo_pension      AS afore_tipo_pension,
+    s.slug              AS siefore_slug,
+    s.nombre            AS siefore_nombre,
+    s.categoria         AS siefore_categoria
+FROM consar.afores a, consar.cat_siefore s
+WHERE a.codigo = :afore_codigo
+  AND s.slug   = :siefore_slug
+"""
+
+SQL_GESTION_SERIE = """
+SELECT p.fecha, p.precio
+FROM consar.precio_gestion p
+JOIN consar.afores a       ON a.id = p.afore_id
+JOIN consar.cat_siefore s  ON s.id = p.siefore_id
+WHERE a.codigo = :afore_codigo
+  AND s.slug   = :siefore_slug
+  AND (CAST(:desde AS DATE) IS NULL OR p.fecha >= CAST(:desde AS DATE))
+  AND (CAST(:hasta AS DATE) IS NULL OR p.fecha <= CAST(:hasta AS DATE))
+ORDER BY p.fecha
+"""
+
+SQL_GESTION_SNAPSHOT = """
+SELECT a.codigo            AS afore_codigo,
+       a.nombre_corto      AS afore_nombre_corto,
+       s.slug              AS siefore_slug,
+       s.nombre            AS siefore_nombre,
+       s.categoria         AS siefore_categoria,
+       p.precio
+FROM consar.precio_gestion p
+JOIN consar.afores a       ON a.id = p.afore_id
+JOIN consar.cat_siefore s  ON s.id = p.siefore_id
+WHERE p.fecha = :fecha
+ORDER BY s.orden_display, a.codigo
+"""
+
+SQL_GESTION_COMPARATIVO_META = """
+SELECT slug, nombre, categoria
+FROM consar.cat_siefore
+WHERE slug = :siefore_slug
+"""
+
+SQL_GESTION_COMPARATIVO_SERIES = """
+SELECT a.codigo            AS afore_codigo,
+       a.nombre_corto      AS afore_nombre_corto,
+       p.fecha,
+       p.precio
+FROM consar.precio_gestion p
+JOIN consar.afores a       ON a.id = p.afore_id
+JOIN consar.cat_siefore s  ON s.id = p.siefore_id
+WHERE s.slug   = :siefore_slug
+  AND p.fecha >= CAST(:desde AS DATE)
+  AND p.fecha <= CAST(:hasta AS DATE)
+ORDER BY a.codigo, p.fecha
+"""
+
+
+@router.get(
+    "/precios-gestion/serie",
+    response_model=PrecioSerieResponse,
+    summary="Serie diaria gestión: precio interno por (AFORE × SIEFORE)",
+    description=(
+        "Retorna serie diaria de precios de gestión interna en MXN para una tupla "
+        "(afore, siefore). Cobertura 1997-01-07 → 2025-12-06 (28+ años, 7,060 fechas). "
+        "Range NAV +30% vs precio_bolsa: distinta base/comisión. NO incluye PensionISSSTE."
+    ),
+)
+@limiter.limit("60/minute")
+async def get_precio_gestion_serie(
+    request: Request,
+    afore_codigo: str = Query(..., description="codigo en consar.afores (NO incluye pensionissste en #11)"),
+    siefore_slug: str = Query(..., description="slug en consar.cat_siefore (incluye sb5 legacy XXI)"),
+    desde: Optional[str] = Query(None, description="YYYY-MM-DD opcional"),
+    hasta: Optional[str] = Query(None, description="YYYY-MM-DD opcional"),
+) -> PrecioSerieResponse:
+    desde_d = _parse_fecha_dia(desde) if desde else None
+    hasta_d = _parse_fecha_dia(hasta) if hasta else None
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_GESTION_SERIE_META),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"afore_codigo={afore_codigo!r} o siefore_slug={siefore_slug!r} no existe",
+            )
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_GESTION_SERIE),
+            {"afore_codigo": afore_codigo, "siefore_slug": siefore_slug,
+             "desde": desde_d, "hasta": hasta_d},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"sin datos para ({afore_codigo}, {siefore_slug})"
+                + (f" en ventana [{desde}, {hasta}]" if desde or hasta else "")
+                + ". Verificar disponibilidad histórica de la combinación. "
+                  "PensionISSSTE NO aparece en gestión interna."
+            ),
+        )
+
+    serie = [PrecioPunto(fecha=r["fecha"], precio=float(r["precio"])) for r in rows]
+    precios_only = [p.precio for p in serie]
+
+    return PrecioSerieResponse(
+        afore=PrecioAforeRef(
+            codigo=meta["afore_codigo"],
+            nombre_corto=meta["afore_nombre_corto"],
+            tipo_pension=meta["afore_tipo_pension"],
+        ),
+        siefore=PrecioSieforeRef(
+            slug=meta["siefore_slug"],
+            nombre=meta["siefore_nombre"],
+            categoria=meta["siefore_categoria"],
+        ),
+        n_puntos=len(serie),
+        rango=SerieRango(desde=serie[0].fecha, hasta=serie[-1].fecha),
+        precio_min=min(precios_only),
+        precio_max=max(precios_only),
+        serie=serie,
+        caveats=[
+            CAVEAT_GESTION_PRECIO,
+            CAVEAT_GESTION_COBERTURA,
+            CAVEAT_GESTION_BANAMEX_MERGE,
+            CAVEAT_GESTION_XXI_LEGACY,
+            CAVEAT_GESTION_NO_PENSIONISSSTE,
+        ],
+    )
+
+
+@router.get(
+    "/precios-gestion/snapshot",
+    response_model=PrecioSnapshotResponse,
+    summary="Snapshot gestión: matriz (AFORE × SIEFORE) en una fecha",
+    description=(
+        "Retorna para una fecha de mercado todos los pares (afore × siefore) con su precio "
+        "de gestión interna. Útil para dashboards comparativos diarios. Si fecha no es hábil "
+        "→ 404. NO incluye PensionISSSTE."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_precio_gestion_snapshot(
+    request: Request,
+    fecha: str = Query(..., description="YYYY-MM-DD (fecha hábil de mercado)"),
+) -> PrecioSnapshotResponse:
+    d = _parse_fecha_dia(fecha)
+    async with engine.connect() as conn:
+        rows = (await conn.execute(
+            text(SQL_GESTION_SNAPSHOT),
+            {"fecha": d},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"sin datos para fecha={d.isoformat()}. Probable día no-hábil de mercado. "
+                f"Cobertura: 1997-01-07 → 2025-12-06 (M-V principalmente)."
+            ),
+        )
+
+    filas = [
+        PrecioSnapshotRow(
+            afore_codigo=r["afore_codigo"],
+            afore_nombre_corto=r["afore_nombre_corto"],
+            siefore_slug=r["siefore_slug"],
+            siefore_nombre=r["siefore_nombre"],
+            siefore_categoria=r["siefore_categoria"],
+            precio=float(r["precio"]),
+        )
+        for r in rows
+    ]
+
+    return PrecioSnapshotResponse(
+        fecha=d,
+        n_filas=len(filas),
+        precio_min=min(f.precio for f in filas),
+        precio_max=max(f.precio for f in filas),
+        filas=filas,
+        caveats=[
+            CAVEAT_GESTION_PRECIO,
+            CAVEAT_GESTION_COBERTURA,
+            CAVEAT_GESTION_BANAMEX_MERGE,
+            CAVEAT_GESTION_XXI_LEGACY,
+            CAVEAT_GESTION_NO_PENSIONISSSTE,
+        ],
+    )
+
+
+@router.get(
+    "/precios-gestion/comparativo",
+    response_model=PrecioComparativoResponse,
+    summary="Comparativo gestión: misma SIEFORE entre N afores en ventana",
+    description=(
+        "Retorna serie diaria de precio gestión interna de la misma siefore para todas las "
+        "afores que la reportan, dentro de una ventana temporal OBLIGATORIA. Caso de uso: "
+        "comparar performance gestión interna entre afores. La ventana es obligatoria para "
+        "protección del server (payload sin ventana podría ser 7K×10=70K puntos)."
+    ),
+)
+@limiter.limit("30/minute")
+async def get_precio_gestion_comparativo(
+    request: Request,
+    siefore_slug: str = Query(..., description="slug en consar.cat_siefore"),
+    desde: str = Query(..., description="YYYY-MM-DD (obligatorio)"),
+    hasta: str = Query(..., description="YYYY-MM-DD (obligatorio)"),
+) -> PrecioComparativoResponse:
+    desde_d = _parse_fecha_dia(desde)
+    hasta_d = _parse_fecha_dia(hasta)
+    if hasta_d < desde_d:
+        raise HTTPException(status_code=422, detail="hasta < desde")
+
+    async with engine.connect() as conn:
+        meta_rows = (await conn.execute(
+            text(SQL_GESTION_COMPARATIVO_META),
+            {"siefore_slug": siefore_slug},
+        )).mappings().all()
+        if not meta_rows:
+            raise HTTPException(status_code=404, detail=f"siefore_slug={siefore_slug!r} no existe")
+        meta = meta_rows[0]
+
+        rows = (await conn.execute(
+            text(SQL_GESTION_COMPARATIVO_SERIES),
+            {"siefore_slug": siefore_slug, "desde": desde_d, "hasta": hasta_d},
+        )).mappings().all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"sin datos para siefore_slug={siefore_slug!r} en ventana [{desde}, {hasta}]",
+        )
+
+    by_afore = {}
+    for r in rows:
+        ac = r["afore_codigo"]
+        if ac not in by_afore:
+            by_afore[ac] = {"afore_codigo": ac, "afore_nombre_corto": r["afore_nombre_corto"], "puntos": []}
+        by_afore[ac]["puntos"].append(PrecioPunto(fecha=r["fecha"], precio=float(r["precio"])))
+
+    series = [
+        PrecioComparativoSerieAfore(
+            afore_codigo=v["afore_codigo"],
+            afore_nombre_corto=v["afore_nombre_corto"],
+            n_puntos=len(v["puntos"]),
+            serie=v["puntos"],
+        )
+        for v in by_afore.values()
+    ]
+
+    return PrecioComparativoResponse(
+        siefore=PrecioSieforeRef(slug=meta["slug"], nombre=meta["nombre"], categoria=meta["categoria"]),
+        rango=SerieRango(desde=desde_d, hasta=hasta_d),
+        n_afores=len(series),
+        series=series,
+        caveats=[
+            CAVEAT_GESTION_PRECIO,
+            CAVEAT_GESTION_COBERTURA,
+            CAVEAT_GESTION_BANAMEX_MERGE,
+            CAVEAT_GESTION_XXI_LEGACY,
+            CAVEAT_GESTION_NO_PENSIONISSSTE,
+        ],
+    )
