@@ -6,11 +6,11 @@
 // --red-dim, --yellow, --yellow-dim, --purple.
 
 export const CONSAR_EXTRA_CSS = `
-/* ===== Sub-nav nivel-2 (pills horizontales) ===== */
+/* ===== Sub-nav nivel-2 (capítulos narrativos + pills horizontales) ===== */
 .consar-subnav {
   display: flex;
-  gap: 0.4rem;
-  padding: 0.7rem 2rem;
+  gap: 1.4rem;
+  padding: 0.85rem 2rem;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   overflow-x: auto;
@@ -18,10 +18,39 @@ export const CONSAR_EXTRA_CSS = `
 }
 .consar-subnav::-webkit-scrollbar { display: none; }
 
+.consar-subnav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  position: relative;
+}
+.consar-subnav-group + .consar-subnav-group::before {
+  content: "";
+  position: absolute;
+  left: -0.7rem;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  width: 1px;
+  background: var(--border);
+}
+.consar-subnav-chapter {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding-left: 0.15rem;
+  white-space: nowrap;
+}
+.consar-subnav-pills {
+  display: flex;
+  gap: 0.4rem;
+}
+
 .consar-subnav-pill {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.4rem;
   padding: 0.45rem 0.85rem;
   border-radius: 6px;
   background: var(--bg-card);
@@ -29,6 +58,7 @@ export const CONSAR_EXTRA_CSS = `
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.8rem;
+  font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
@@ -42,21 +72,21 @@ export const CONSAR_EXTRA_CSS = `
   border-color: var(--accent);
   background: var(--accent-dim);
 }
-.consar-subnav-label {
-  font-weight: 600;
-}
-.consar-subnav-meta {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-.consar-subnav-pill.active .consar-subnav-meta {
-  color: var(--text-secondary);
-}
 
 @media (max-width: 720px) {
-  .consar-subnav { padding: 0.55rem 1rem; }
+  .consar-subnav {
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 0.7rem 1rem;
+    overflow-x: visible;
+  }
+  .consar-subnav-group + .consar-subnav-group::before { display: none; }
+  .consar-subnav-pills {
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+  .consar-subnav-pills::-webkit-scrollbar { display: none; }
   .consar-subnav-pill { padding: 0.35rem 0.65rem; font-size: 0.75rem; }
 }
 
@@ -316,12 +346,35 @@ export const CONSAR_EXTRA_CSS = `
   .consar-chart-wrap { height: 320px; }
 }
 
-/* ===== Dataset cards grid (Phase E — landing /consar) ===== */
+/* ===== Dataset cards agrupadas por capítulo (Phase E + sub-fase narrativa) ===== */
+.consar-cards-chapter {
+  margin: 1.5rem 0 0;
+}
+.consar-cards-chapter:first-of-type { margin-top: 1rem; }
+.consar-cards-chapter-head {
+  margin-bottom: 0.7rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.consar-cards-chapter-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  font-weight: 700;
+  margin: 0 0 0.2rem 0;
+}
+.consar-cards-chapter-intro {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
 .consar-dataset-cards-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
-  margin: 1rem 0 1.5rem;
 }
 @media (max-width: 960px) {
   .consar-dataset-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -333,7 +386,7 @@ export const CONSAR_EXTRA_CSS = `
 .consar-dataset-card {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.5rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -354,27 +407,12 @@ export const CONSAR_EXTRA_CSS = `
   outline-offset: 2px;
 }
 
-.consar-dataset-card-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
-}
 .consar-dataset-card-title {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
   margin: 0;
   letter-spacing: -0.01em;
-}
-.consar-dataset-card-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
 }
 .consar-dataset-card-desc {
   font-size: 0.82rem;

@@ -9,7 +9,7 @@ const EXPECTED_SECTION_TITLE_PATTERNS: readonly RegExp[] = [
   /^5\s*·\s*Vivienda/,
   /^6\s*·\s*Pensión Bienestar/,
   /^7\s*·\s*Catálogos/,
-  /^8\s*·\s*10 datasets atómicos/,  // Phase E — bloque cards a sub-secciones
+  /^8\s*·\s*El observatorio en cuatro capítulos/,  // Phase E + sub-fase narrativa
 ];
 
 test.describe('CONSAR landing page', () => {
@@ -48,23 +48,34 @@ test.describe('CONSAR landing page', () => {
       expect(txt.trim(), `section ${i + 1} title mismatch`).toMatch(EXPECTED_SECTION_TITLE_PATTERNS[i]);
     }
 
-    // Phase E: 10 dataset cards rendered, each with title + badge + link to sub-section
+    // Phase E + sub-fase narrativa: 10 dataset cards agrupadas en 4 capítulos
+    const chapterBlocks = page.locator('.consar-cards-chapter');
+    await expect(chapterBlocks).toHaveCount(4);
+    const chapterIds = await chapterBlocks.evaluateAll((els) =>
+      els.map((el) => (el as HTMLElement).getAttribute('data-chapter')),
+    );
+    expect(chapterIds).toEqual(['cobertura', 'movimientos', 'inversion', 'precios']);
+
     const cards = page.locator('a.consar-dataset-card');
     await expect(cards).toHaveCount(10);
     const cardHrefs = await cards.evaluateAll((els) => els.map((el) => (el as HTMLAnchorElement).getAttribute('href')));
     const expectedSlugs = [
       '/consar/pea-cotizantes',
+      '/consar/cuentas-administradas',
       '/consar/comisiones',
-      '/consar/flujos',
       '/consar/traspasos',
+      '/consar/flujos',
       '/consar/activo-neto',
       '/consar/rendimientos',
       '/consar/sensibilidad',
-      '/consar/cuentas-administradas',
       '/consar/precios-bolsa',
       '/consar/precios-gestion',
     ];
-    expect(new Set(cardHrefs)).toEqual(new Set(expectedSlugs));
+    expect(cardHrefs).toEqual(expectedSlugs);
+
+    // Cards no longer expose visible dataset N badge (eliminado en sub-fase narrativa)
+    const badges = page.locator('.consar-dataset-card-badge');
+    await expect(badges).toHaveCount(0);
 
     // 7 unique endpoints fetched by the frontend, each 200
     for (const endpoint of CONSAR_FRONTEND_FETCHES) {

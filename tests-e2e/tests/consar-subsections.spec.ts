@@ -1,38 +1,52 @@
-// Smoke E2E para 10 sub-secciones CONSAR (/consar/<slug>) — Phases A+B+C+D.
+// Smoke E2E para 10 sub-secciones CONSAR (/consar/<slug>) — Phases A+B+C+D
+// + sub-fase narrativa (cuatro capítulos, sin numeración visible).
 // Cubre dos flujos:
-//   1) Descubrimiento desde landing: card click → navega + sub-sección rendea.
+//   1) Descubrimiento desde landing: card click → navega + sub-nav active.
 //   2) Phase D específico: chart Chart.js multi-line en /consar/precios-gestion.
 //
 // Tests contra producción por defecto (PLAYWRIGHT_BASE_URL configurable).
 
 import { test, expect } from '@playwright/test';
 
+// Orden por capítulo narrativo:
+//   cobertura · movimientos · inversión · precios
 const ALL_SUBSECTIONS = [
-  { slug: 'pea-cotizantes',        datasetN: '#02' },
-  { slug: 'comisiones',            datasetN: '#06' },
-  { slug: 'flujos',                datasetN: '#04' },
-  { slug: 'traspasos',             datasetN: '#08' },
-  { slug: 'activo-neto',           datasetN: '#07' },
-  { slug: 'rendimientos',          datasetN: '#10' },
-  { slug: 'sensibilidad',          datasetN: '#03' },
-  { slug: 'cuentas-administradas', datasetN: '#05' },
-  { slug: 'precios-bolsa',         datasetN: '#01' },
-  { slug: 'precios-gestion',       datasetN: '#11' },
+  { slug: 'pea-cotizantes',        chapter: 'cobertura'    },
+  { slug: 'cuentas-administradas', chapter: 'cobertura'    },
+  { slug: 'comisiones',            chapter: 'movimientos'  },
+  { slug: 'traspasos',             chapter: 'movimientos'  },
+  { slug: 'flujos',                chapter: 'movimientos'  },
+  { slug: 'activo-neto',           chapter: 'inversion'    },
+  { slug: 'rendimientos',          chapter: 'inversion'    },
+  { slug: 'sensibilidad',          chapter: 'inversion'    },
+  { slug: 'precios-bolsa',         chapter: 'precios'      },
+  { slug: 'precios-gestion',       chapter: 'precios'      },
 ] as const;
 
 test.describe('CONSAR sub-secciones · Phases A+B+C+D', () => {
-  test('landing card discovery → click navega a sub-sección con sub-nav active', async ({ page }) => {
+  test('landing card discovery → 4 capítulos, click navega a sub-sección con sub-nav active', async ({ page }) => {
     await page.goto('/consar', { waitUntil: 'networkidle' });
 
-    // Sub-nav nivel-2 visible con 11 pills (overview + 10 sub-secciones)
+    // Sub-nav nivel-2 agrupado en 4 capítulos
+    const groups = page.locator('nav.consar-subnav .consar-subnav-group');
+    await expect(groups).toHaveCount(4);
+    const chapterLabels = await page.locator('.consar-subnav-chapter').allTextContents();
+    expect(chapterLabels).toEqual([
+      'Cobertura del sistema',
+      'Movimientos de los afiliados',
+      'Inversión y desempeño',
+      'Precios diarios',
+    ]);
+
+    // 11 pills totales (overview + 10 sub-secciones)
     const pills = page.locator('nav.consar-subnav a.consar-subnav-pill');
     await expect(pills).toHaveCount(11);
 
-    // En landing, pill 'Recursos SAR' (overview) está activo
+    // En landing, pill 'Recursos SAR' (overview) está activo dentro del primer grupo
     const overviewPill = page.locator('nav.consar-subnav a.consar-subnav-pill[href="/consar"]');
     await expect(overviewPill).toHaveClass(/\bactive\b/);
 
-    // Click primera card (PEA · cotizantes #02)
+    // Click primera card del capítulo Cobertura (PEA · cotizantes)
     const firstCard = page.locator('a.consar-dataset-card[href="/consar/pea-cotizantes"]');
     await expect(firstCard).toBeVisible();
     await firstCard.click();
@@ -44,14 +58,16 @@ test.describe('CONSAR sub-secciones · Phases A+B+C+D', () => {
     await expect(page.locator('main.container section.hero h1')).toBeVisible();
   });
 
-  test('cada una de las 10 sub-secciones responde 200 con shell + sub-nav', async ({ request }) => {
+  test('cada una de las 10 sub-secciones responde 200 con shell + sub-nav agrupado', async ({ request }) => {
     for (const item of ALL_SUBSECTIONS) {
       const res = await request.get(`/consar/${item.slug}`);
       expect(res.status(), `GET /consar/${item.slug}`).toBe(200);
       const html = await res.text();
       expect(html, `sub-nav missing in /consar/${item.slug}`).toContain('class="consar-subnav"');
-      expect(html, `dataset N missing in /consar/${item.slug}`).toContain(item.datasetN);
+      expect(html, `chapter group missing in /consar/${item.slug}`).toContain('consar-subnav-group');
       expect(html, `header brand missing in /consar/${item.slug}`).toContain('header-brand');
+      // Active pill apunta a la sub-sección correcta
+      expect(html, `active pill missing for /consar/${item.slug}`).toContain(`href="/consar/${item.slug}" class="consar-subnav-pill active"`);
     }
   });
 
