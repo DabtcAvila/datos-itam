@@ -18,6 +18,8 @@ import { buildActivoNeto } from '../consar-extra/datasets/activo-neto';
 import { buildRendimientos } from '../consar-extra/datasets/rendimientos';
 import { buildSensibilidad } from '../consar-extra/datasets/sensibilidad';
 import { buildCuentasAdministradas } from '../consar-extra/datasets/cuentas-administradas';
+import { buildPreciosBolsa } from '../consar-extra/datasets/precios-bolsa';
+import { buildPreciosGestion } from '../consar-extra/datasets/precios-gestion';
 
 export function renderConsarDataset(slug: string): string | null {
   const item = getConsarItem(slug);
@@ -48,6 +50,12 @@ export function renderConsarDataset(slug: string): string | null {
       break;
     case 'cuentas-administradas':
       payload = buildCuentasAdministradas();
+      break;
+    case 'precios-bolsa':
+      payload = buildPreciosBolsa();
+      break;
+    case 'precios-gestion':
+      payload = buildPreciosGestion();
       break;
     default:
       // El slug está registrado en CONSAR_SUBNAV pero el módulo no existe

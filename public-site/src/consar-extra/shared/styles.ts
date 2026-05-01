@@ -287,4 +287,55 @@ export const CONSAR_EXTRA_CSS = `
   white-space: nowrap;
   border: 0;
 }
+
+/* ===== Chart container (Phase D — comparativo multi-line) ===== */
+.consar-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1rem 0.85rem;
+  margin: 0.5rem 0 1.25rem;
+}
+.consar-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 420px;
+}
+.consar-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+  padding: 0 1rem;
+}
+@media (max-width: 720px) {
+  .consar-chart-wrap { height: 320px; }
+}
+
+/* ===== Comparativo cross-afore table (wide) ===== */
+.consar-table-cross {
+  font-size: 0.78rem;
+}
+.consar-table-cross thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
+  white-space: nowrap;
+}
+.consar-table-cross td.consar-precio-null {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.consar-table-cross-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+}
 `;
