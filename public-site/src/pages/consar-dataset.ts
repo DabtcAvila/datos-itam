@@ -14,6 +14,10 @@ import { buildPeaCotizantes } from '../consar-extra/datasets/pea-cotizantes';
 import { buildComisiones } from '../consar-extra/datasets/comisiones';
 import { buildFlujos } from '../consar-extra/datasets/flujos';
 import { buildTraspasos } from '../consar-extra/datasets/traspasos';
+import { buildActivoNeto } from '../consar-extra/datasets/activo-neto';
+import { buildRendimientos } from '../consar-extra/datasets/rendimientos';
+import { buildSensibilidad } from '../consar-extra/datasets/sensibilidad';
+import { buildCuentasAdministradas } from '../consar-extra/datasets/cuentas-administradas';
 
 export function renderConsarDataset(slug: string): string | null {
   const item = getConsarItem(slug);
@@ -32,6 +36,18 @@ export function renderConsarDataset(slug: string): string | null {
       break;
     case 'traspasos':
       payload = buildTraspasos();
+      break;
+    case 'activo-neto':
+      payload = buildActivoNeto();
+      break;
+    case 'rendimientos':
+      payload = buildRendimientos();
+      break;
+    case 'sensibilidad':
+      payload = buildSensibilidad();
+      break;
+    case 'cuentas-administradas':
+      payload = buildCuentasAdministradas();
       break;
     default:
       // El slug está registrado en CONSAR_SUBNAV pero el módulo no existe
