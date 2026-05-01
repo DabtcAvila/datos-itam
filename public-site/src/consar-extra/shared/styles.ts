@@ -316,6 +316,81 @@ export const CONSAR_EXTRA_CSS = `
   .consar-chart-wrap { height: 320px; }
 }
 
+/* ===== Dataset cards grid (Phase E — landing /consar) ===== */
+.consar-dataset-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 1rem 0 1.5rem;
+}
+@media (max-width: 960px) {
+  .consar-dataset-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .consar-dataset-cards-grid { grid-template-columns: 1fr; }
+}
+
+.consar-dataset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.95rem 1rem 0.85rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.05s, background 0.15s;
+  min-width: 0;
+}
+.consar-dataset-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.consar-dataset-card:hover .consar-dataset-card-cta { color: var(--accent); }
+.consar-dataset-card:active { transform: translateY(1px); }
+.consar-dataset-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.consar-dataset-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.consar-dataset-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.consar-dataset-card-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.consar-dataset-card-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+.consar-dataset-card-cta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-top: auto;
+  transition: color 0.15s;
+}
+
 /* ===== Comparativo cross-afore table (wide) ===== */
 .consar-table-cross {
   font-size: 0.78rem;

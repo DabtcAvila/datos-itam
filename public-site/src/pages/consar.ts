@@ -2,6 +2,7 @@ import { CSS } from '../styles';
 import { buildNavTabs } from '../shared/nav';
 import { buildConsarSubnav } from '../consar-extra/shared/nav';
 import { CONSAR_EXTRA_CSS } from '../consar-extra/shared/styles';
+import { buildConsarDatasetCards } from '../consar-extra/shared/cards';
 import {
   buildConsarHero,
   buildD1_Totales,
@@ -67,6 +68,8 @@ export function renderConsarDashboard(): string {
     ${buildD5_Vivienda()}
     ${buildD6_PensionBienestar()}
     ${buildD7_Catalogos()}
+
+    ${buildConsarDatasetCards()}
 
     ${buildConsarAbout()}
 
