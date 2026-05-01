@@ -9,6 +9,7 @@ const EXPECTED_SECTION_TITLE_PATTERNS: readonly RegExp[] = [
   /^5\s*·\s*Vivienda/,
   /^6\s*·\s*Pensión Bienestar/,
   /^7\s*·\s*Catálogos/,
+  /^8\s*·\s*10 datasets atómicos/,  // Phase E — bloque cards a sub-secciones
 ];
 
 test.describe('CONSAR landing page', () => {
@@ -39,13 +40,31 @@ test.describe('CONSAR landing page', () => {
     await expect(consarTab).toHaveAttribute('aria-current', 'page');
     await expect(consarTab).toHaveClass(/\bactive\b/);
 
-    // 7 section titles in order
+    // 8 section titles in order (D1-D7 + Phase E cards block)
     const sectionTitles = page.locator('section.enigh-section > h2.section-title');
-    await expect(sectionTitles).toHaveCount(7);
+    await expect(sectionTitles).toHaveCount(8);
     for (let i = 0; i < EXPECTED_SECTION_TITLE_PATTERNS.length; i++) {
       const txt = (await sectionTitles.nth(i).textContent()) ?? '';
       expect(txt.trim(), `section ${i + 1} title mismatch`).toMatch(EXPECTED_SECTION_TITLE_PATTERNS[i]);
     }
+
+    // Phase E: 10 dataset cards rendered, each with title + badge + link to sub-section
+    const cards = page.locator('a.consar-dataset-card');
+    await expect(cards).toHaveCount(10);
+    const cardHrefs = await cards.evaluateAll((els) => els.map((el) => (el as HTMLAnchorElement).getAttribute('href')));
+    const expectedSlugs = [
+      '/consar/pea-cotizantes',
+      '/consar/comisiones',
+      '/consar/flujos',
+      '/consar/traspasos',
+      '/consar/activo-neto',
+      '/consar/rendimientos',
+      '/consar/sensibilidad',
+      '/consar/cuentas-administradas',
+      '/consar/precios-bolsa',
+      '/consar/precios-gestion',
+    ];
+    expect(new Set(cardHrefs)).toEqual(new Set(expectedSlugs));
 
     // 7 unique endpoints fetched by the frontend, each 200
     for (const endpoint of CONSAR_FRONTEND_FETCHES) {
